@@ -1,0 +1,18 @@
+#FREDcast SETTINGS
+
+#Quandl Codes
+
+#!!! Quandl API codes are stored here for easy editing if needed.
+#!!! For Y, use the Quandl code exactly as shown on the webpage. Format is "key:quandl_code"
+#!!! For X, point towards the 'csv'.
+#!!! EX: unemployment:FRED/UNEMPLOY
+
+#Y / Target Values
+    unemployment:FRED/UNEMPLOY
+    payroll:FRED/PAYEMS
+    gdp:FRED/GDP
+    cpi:FRED/CPIAUCSL
+
+#X / Feature Values
+    features:quandl_codes.csv
+
