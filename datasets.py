@@ -99,18 +99,18 @@ def gather_datasets():
     f.create_dataset('value1234', data=y[1])
     f.close()
 
-    for i in range(s.get('jump'), len(s.get('features')), 1):
-        x = gather_x(i, i + 1)
+    for i in range(s.get('jump'), len(s.get('features')), 1000):
+        x = gather_x(i, i + 1000)
         f = h5py.File('x_values.h5', 'a')
-        f.create_dataset('value' + str(i), data=x[0])
+        f.create_dataset('value' + str(i) + '000', data=x[0])
         f.close()
 
         f = h5py.File('x_dates.h5', 'a')
-        f.create_dataset('value' + str(i), data=x[1])
+        f.create_dataset('value' + str(i) + '000', data=x[1])
         f.close()
 
         f = h5py.File('x_features.h5', 'a')
-        f.create_dataset('value' + str(i), data=x[2])
+        f.create_dataset('value' + str(i) + '000', data=x[2])
         f.close()
 
 
