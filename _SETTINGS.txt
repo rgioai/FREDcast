@@ -18,9 +18,9 @@
 
 #Jump
 
-#!!! Jump skips ahead n amount of steps in the code
+#!!! Jump skips ahead n * 1000 amount of steps in the code
 #!!! Useful for continuing from breaks and not having to start over
-jump:0
+jump:1
 
 #Authentication Code
 

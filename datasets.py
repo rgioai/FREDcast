@@ -29,7 +29,7 @@ def gather_datasets():
         dates = np.empty(shape=(1,), dtype='S10')
         for call in calls:
             TOTAL_CALLS += 1
-            print(call, TOTAL_CALLS)
+            print(call)
             returned_call = None
             while returned_call is None:
                 try:
@@ -48,7 +48,7 @@ def gather_datasets():
 
         return [values, dates]
 
-    def gather_x(start, stop):
+    def gather_x(start, stop, pos):
         global TOTAL_CALLS
         global AUTH_TOKEN
         values = np.empty(shape=(1,), dtype=np.float32)
@@ -60,7 +60,8 @@ def gather_datasets():
         calls = calls[start:stop]
         for call in calls:
             TOTAL_CALLS += 1
-            print(call[0], TOTAL_CALLS)
+            pos += 1
+            print(call[0], pos)
             if TOTAL_CALLS % 2000 == 0:
                 sleep(300)
             returned_call = None
@@ -87,25 +88,25 @@ def gather_datasets():
     y = gather_y()
 
     f = h5py.File('y_values.h5', 'w')
-    f.create_dataset('value1234', data=y[0])
+    f.create_dataset('values_predict', data=y[0])
     f.close()
 
     f = h5py.File('y_dates.h5', 'w')
-    f.create_dataset('value1234', data=y[1])
+    f.create_dataset('dates_predict', data=y[1])
     f.close()
 
-    for i in range(s.get('jump'), len(s.get('features')), 1000):
-        x = gather_x(i, i + 1000)
+    for i in range(s.get('jump') * 1000, len(s.get('features')), 1000):
+        x = gather_x(i, i + 1001, i)
         f = h5py.File('x_values.h5', 'a')
-        f.create_dataset('values' + str(i) + 'to' + str(i + 1000), data=x[0])
+        f.create_dataset('values' + str(i + 1) + 'to' + str(i + 1000), data=x[0])
         f.close()
 
         f = h5py.File('x_dates.h5', 'a')
-        f.create_dataset('values' + str(i) + 'to' + str(i + 1000), data=x[1])
+        f.create_dataset('dates' + str(i + 1) + 'to' + str(i + 1000), data=x[1])
         f.close()
 
         f = h5py.File('x_features.h5', 'a')
-        f.create_dataset('values' + str(i) + 'to' + str(i + 1000), data=x[2])
+        f.create_dataset('features' + str(i + 1) + 'to' + str(i + 1000), data=x[2])
         f.close()
 
 
