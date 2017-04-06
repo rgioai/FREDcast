@@ -25,10 +25,9 @@ def gather_datasets():
         calls = []
         for value in ['unemployment', 'payroll', 'gdp', 'cpi']:
             calls.append(s.get(value))
-        values = []
-        dates = []
-        targets = []
-        for call, target_type in zip(calls, ['Target Unemployment', 'Target Payroll', 'Target GDP', 'Target CPI']):
+        values = np.empty(shape=(1,), dtype=np.float32)
+        dates = np.empty(shape=(1,), dtype='S10')
+        for call in calls:
             TOTAL_CALLS += 1
             print(call, TOTAL_CALLS)
             returned_call = None
@@ -39,35 +38,33 @@ def gather_datasets():
                                            authtoken=AUTH_TOKEN)
                     returned_call.dtype.names = ('Date', 'Value')
                     value = returned_call['Value'].astype(np.float32)
-                    date = returned_call['Date']
-                    target = target_type
+                    date = returned_call['Date'].astype('S10')
                 except qd.QuandlError:
                     sleep(60)
                     pass
             sleep(randint(1, 3))
-            values.append(value)
-            dates.append(date)
-            targets.append(target)
+            np.append(values, value)
+            np.append(dates, date)
 
-        return [values, dates, targets]
+        return [values, dates]
 
     def gather_x(start, stop):
         s = settings.Settings()
         s.load()
         global TOTAL_CALLS
         global AUTH_TOKEN
-        values = []
-        dates = []
-        features = []
+        values = np.empty(shape=(1,), dtype=np.float32)
+        dates = np.empty(shape=(1,), dtype='S10')
+        features = np.empty(shape=(1,), dtype='S10')
         calls = s.get('features')
         if stop > len(calls):
             stop = len(calls)
-        calls = calls[start:stop + 1]
+        calls = calls[start:stop]
         for call in calls:
             TOTAL_CALLS += 1
             print(call[0], TOTAL_CALLS)
             if TOTAL_CALLS % 2000 == 0:
-                sleep(600)
+                sleep(300)
             returned_call = None
             while returned_call is None:
                 try:
@@ -76,15 +73,16 @@ def gather_datasets():
                                            authtoken=AUTH_TOKEN)
                     returned_call.dtype.names = ('Date', 'Value')
                     value = returned_call['Value'].astype(np.float32)
-                    date = returned_call['Date']
-                    feature = call[1]
-                except qd.QuandlError:
+                    date = returned_call['Date'].astype('S10')
+                    feature = np.string_(call[1])
+                except qd.QuandlError as e:
+                    print(str(e) + 'Ignoring, retrying in 1 minute.')
                     sleep(60)
                     pass
             sleep(randint(1, 3))
-            values.append(value)
-            dates.append(date)
-            features.append(feature)
+            np.append(values, value)
+            np.append(dates, date)
+            np.append(features, feature)
 
         return [values, dates, features]
 
@@ -92,16 +90,27 @@ def gather_datasets():
     s.load()
 
     y = gather_y()
-    x = gather_x(0, 10000)
 
-    f = h5py.File('data.h5', 'w')
-    f.create_dataset('value', data=y)
+    f = h5py.File('y_values.h5', 'w')
+    f.create_dataset('value1234', data=y[0])
     f.close()
 
-    for i in range(10000, len(settings.get('features')), 10000):
-        x = gather_x(i, i + 10000)
-        f = h5py.File('data.h5', 'a')
-        f.create_dataset('value', data=x)
+    f = h5py.File('y_dates.h5', 'w')
+    f.create_dataset('value1234', data=y[1])
+    f.close()
+
+    for i in range(s.get('jump'), len(s.get('features')), 1):
+        x = gather_x(i, i + 1)
+        f = h5py.File('x_values.h5', 'a')
+        f.create_dataset('value' + str(i), data=x[0])
+        f.close()
+
+        f = h5py.File('x_dates.h5', 'a')
+        f.create_dataset('value' + str(i), data=x[1])
+        f.close()
+
+        f = h5py.File('x_features.h5', 'a')
+        f.create_dataset('value' + str(i), data=x[2])
         f.close()
 
 
