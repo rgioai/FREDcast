@@ -20,10 +20,10 @@
 
 #!!! Jump skips ahead n * 1000 amount of steps in the code
 #!!! Useful for continuing from breaks and not having to start over
-jump:1
+jump:0
 
 #Authentication Code
 
 #!!! Used for Quandl's data accessing
 #!!! Also used to bypass the 70k call limit
-auth_code:W1THAw2psKF66k1Px9tz
+auth_code:4XZtwrDcHQiPnpsdGf4Z

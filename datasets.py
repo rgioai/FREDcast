@@ -63,7 +63,7 @@ def gather_datasets():
             pos += 1
             print(call[0], pos)
             if TOTAL_CALLS % 2000 == 0:
-                sleep(300)
+                sleep(120)
             returned_call = None
             while returned_call is None:
                 try:
