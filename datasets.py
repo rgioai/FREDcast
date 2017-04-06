@@ -1,4 +1,4 @@
-from random import randint
+from random import random
 from time import sleep
 
 import h5py
@@ -42,7 +42,7 @@ def gather_datasets():
                 except qd.QuandlError:
                     sleep(60)
                     pass
-            sleep(randint(1, 3))
+            sleep(random())
             np.append(values, value)
             np.append(dates, date)
 
@@ -79,7 +79,7 @@ def gather_datasets():
                     print(str(e) + 'Ignoring, retrying in 1 minute.')
                     sleep(60)
                     pass
-            sleep(randint(1, 3))
+            sleep(random())
             np.append(values, value)
             np.append(dates, date)
             np.append(features, feature)
@@ -102,15 +102,15 @@ def gather_datasets():
     for i in range(s.get('jump'), len(s.get('features')), 1000):
         x = gather_x(i, i + 1000)
         f = h5py.File('x_values.h5', 'a')
-        f.create_dataset('value' + str(i) + '000', data=x[0])
+        f.create_dataset('values' + str(i) + 'to' + str(i + 1000), data=x[0])
         f.close()
 
         f = h5py.File('x_dates.h5', 'a')
-        f.create_dataset('value' + str(i) + '000', data=x[1])
+        f.create_dataset('values' + str(i) + 'to' + str(i + 1000), data=x[1])
         f.close()
 
         f = h5py.File('x_features.h5', 'a')
-        f.create_dataset('value' + str(i) + '000', data=x[2])
+        f.create_dataset('values' + str(i) + 'to' + str(i + 1000), data=x[2])
         f.close()
 
 
