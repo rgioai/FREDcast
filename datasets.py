@@ -7,8 +7,10 @@ import quandl as qd
 
 import settings
 
+s = settings.Settings()
+s.load()
 TOTAL_CALLS = 0
-AUTH_TOKEN = "W1THAw2psKF66k1Px9tz"
+AUTH_TOKEN = s.get('auth_code')
 
 
 def gather_datasets():
@@ -18,8 +20,6 @@ def gather_datasets():
     """
 
     def gather_y():
-        s = settings.Settings()
-        s.load()
         global TOTAL_CALLS
         global AUTH_TOKEN
         calls = []
@@ -49,8 +49,6 @@ def gather_datasets():
         return [values, dates]
 
     def gather_x(start, stop):
-        s = settings.Settings()
-        s.load()
         global TOTAL_CALLS
         global AUTH_TOKEN
         values = np.empty(shape=(1,), dtype=np.float32)
@@ -85,9 +83,6 @@ def gather_datasets():
             np.append(features, feature)
 
         return [values, dates, features]
-
-    s = settings.Settings()
-    s.load()
 
     y = gather_y()
 
