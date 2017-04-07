@@ -31,6 +31,7 @@ def gather_datasets():
         file_dates = h5py.File('y_dates.h5', 'w')
         for call, type in zip(calls, types):
             TOTAL_CALLS += 1
+            print(call)
             returned_call = None
             while returned_call is None:
                 try:
@@ -85,11 +86,6 @@ def gather_datasets():
         file_dates.close()
 
     gather_y()
-
-    f = h5py.File('y_values.h5', 'r')
-    gdp = f['gdp']
-    print(np.asarray(gdp))
-
     gather_x(s.get('start'), s.get('end'), s.get('start'))
 
     #len(s.get('features'))
