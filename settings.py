@@ -7,8 +7,10 @@ class Settings(object):
                 if not line.strip().startswith('#'):
                     if 'auth_code:' in line.strip():
                         self.data['auth_code'] = line.strip().split(':')[1]
-                    elif 'jump:' in line.strip():
-                        self.data['jump'] = int(line.strip().split(':')[1])
+                    elif 'start:' in line.strip():
+                        self.data['start'] = int(line.strip().split(':')[1])
+                    elif 'end:' in line.strip():
+                        self.data['end'] = int(line.strip().split(':')[1])
                     elif 'unemployment:' in line.strip():
                         self.data['unemployment'] = line.strip().split(':')[1]
                     elif 'payroll:' in line.strip():

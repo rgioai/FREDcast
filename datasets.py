@@ -1,3 +1,4 @@
+import sys
 from random import random
 from time import sleep
 
@@ -23,13 +24,13 @@ def gather_datasets():
         global TOTAL_CALLS
         global AUTH_TOKEN
         calls = []
-        for value in ['unemployment', 'payroll', 'gdp', 'cpi']:
-            calls.append(s.get(value))
-        values = np.empty(shape=(1,), dtype=np.float32)
-        dates = np.empty(shape=(1,), dtype='S10')
-        for call in calls:
+        types = ['unemployment', 'payroll', 'gdp', 'cpi']
+        for type in types:
+            calls.append(s.get(type))
+        file_values = h5py.File('y_values.h5', 'w')
+        file_dates = h5py.File('y_dates.h5', 'w')
+        for call, type in zip(calls, types):
             TOTAL_CALLS += 1
-            print(call)
             returned_call = None
             while returned_call is None:
                 try:
@@ -43,25 +44,25 @@ def gather_datasets():
                     sleep(60)
                     pass
             sleep(random())
-            np.append(values, value)
-            np.append(dates, date)
 
-        return [values, dates]
+            file_values.create_dataset(type, data=value)
+            file_dates.create_dataset(type, data=date)
+        file_dates.close()
+        file_values.close()
 
     def gather_x(start, stop, pos):
         global TOTAL_CALLS
         global AUTH_TOKEN
-        values = np.empty(shape=(1,), dtype=np.float32)
-        dates = np.empty(shape=(1,), dtype='S10')
-        features = np.empty(shape=(1,), dtype='S10')
         calls = s.get('features')
         if stop > len(calls):
             stop = len(calls)
-        calls = calls[start:stop]
+        calls = calls[start - 1:stop]
+        file_values = h5py.File('x_values.h5', 'a')
+        file_dates = h5py.File('x_dates.h5', 'a')
         for call in calls:
             TOTAL_CALLS += 1
-            pos += 1
             print(call[0], pos)
+            pos += 1
             if TOTAL_CALLS % 2000 == 0:
                 sleep(120)
             returned_call = None
@@ -73,42 +74,25 @@ def gather_datasets():
                     returned_call.dtype.names = ('Date', 'Value')
                     value = returned_call['Value'].astype(np.float32)
                     date = returned_call['Date'].astype('S10')
-                    feature = np.string_(call[1])
                 except qd.QuandlError as e:
                     print(str(e) + 'Ignoring, retrying in 1 minute.')
                     sleep(60)
                     pass
             sleep(random())
-            np.append(values, value)
-            np.append(dates, date)
-            np.append(features, feature)
+            file_values.create_dataset(call[0], data=value)
+            file_dates.create_dataset(call[0], data=date)
+        file_values.close()
+        file_dates.close()
 
-        return [values, dates, features]
+    gather_y()
 
-    y = gather_y()
+    f = h5py.File('y_values.h5', 'r')
+    gdp = f['gdp']
+    print(np.asarray(gdp))
 
-    f = h5py.File('y_values.h5', 'w')
-    f.create_dataset('values_predict', data=y[0])
-    f.close()
+    gather_x(s.get('start'), s.get('end'), s.get('start'))
 
-    f = h5py.File('y_dates.h5', 'w')
-    f.create_dataset('dates_predict', data=y[1])
-    f.close()
-
-    for i in range(s.get('jump') * 1000, len(s.get('features')), 1000):
-        x = gather_x(i, i + 1001, i)
-        f = h5py.File('x_values.h5', 'a')
-        f.create_dataset('values' + str(i + 1) + 'to' + str(i + 1000), data=x[0])
-        f.close()
-
-        f = h5py.File('x_dates.h5', 'a')
-        f.create_dataset('dates' + str(i + 1) + 'to' + str(i + 1000), data=x[1])
-        f.close()
-
-        f = h5py.File('x_features.h5', 'a')
-        f.create_dataset('features' + str(i + 1) + 'to' + str(i + 1000), data=x[2])
-        f.close()
-
+    #len(s.get('features'))
 
 if __name__ == '__main__':
     gather_datasets()
