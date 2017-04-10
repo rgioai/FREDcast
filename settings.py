@@ -19,6 +19,7 @@ class Settings(object):
                         self.data['gdp'] = line.strip().split(':')[1]
                     elif 'cpi:' in line.strip():
                         self.data['cpi'] = line.strip().split(':')[1]
+                    # ISSUE Very memory inefficient, use np arrays instead of python lists
                     elif 'features:' in line.strip():
                         features = []
                         with open(str(line.strip().split(':')[1])) as f:

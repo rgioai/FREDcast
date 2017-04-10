@@ -106,6 +106,7 @@ def gdp_residual(data_column, second_norm=None):
     else:
         return data_column.astype(np.float32)
 
+
 def normalize_dataset(dataset, norm_fn, second_norm=None):
     """
     In pseudocode:

@@ -1,0 +1,13 @@
+/FREDcast.hdf5
+    /admin
+        /dates_index (dset whose values correspond to the months represented by the rows in each actual data table)
+        /sample_values_index (dset whose values correspond to the indicators represented by the columns in each actual data table)
+        /values_index (dset whose values correspond to the indicators represented by the columns in each actual data table)
+    /data
+        /sample_raw (dset of a few indicators for testing)
+        /raw (dset of all indicators)
+        /sample_clean (dset of a few indicators, with forward filling and truncating)
+        /clean (dset of all indicators, with forward filling and truncating)
+        /norm_data
+            /sample_{norm_fn}_{residual_fn}
+            /{norm_fn}_{residual_fn}
