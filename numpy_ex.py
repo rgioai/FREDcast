@@ -1,3 +1,4 @@
+from .cleaning_functions import *
 import numpy as np
 import h5py
 
@@ -12,10 +13,9 @@ for i in range(len(quandl_codes)):
     quandl_code = quandl_codes[i]
     base_array = np.empty((600,)).fill(np.nan)  # Create an empty array of 50 years * 12 mos and fill each entry with nan
     quandl_values = np.array([])  # Get quandl values from quandl_code
-    # If freq is monthly:
-    return_array = np.array([])  # Map the values from quandl_values onto base_array, creating return_array
-    # If freq is > monthly, average the weekly or daily values to get a monthly value
-    # If freq is < monthly, spread the values across multiple months (4 for quarterly and 12 for annual)
+    time_scaled = time_scale(quandl_values)
+    forward_filled = forward_fill(time_scaled)
+    assert(forward_filled.shape == (600,))  # Double check shape
     dset[i] = return_array  # The slicing here is on the wrong axis (row instead of column), but the fix is simple
 
 hdf5.close()
