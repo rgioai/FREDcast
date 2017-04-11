@@ -1,70 +1,81 @@
 import numpy as np
 
 
-# TODO Review the block comments. As long as they make sense, delete them.
-
-
 def forward_fill(data_column):
-    # By filling our data on top of an array of np.nan values, we already have the right nan setup.
-    # Now, for every nan, check if there is a previous real value.
-    # If there is, use the most recent previous value in this cell.
-    # TODO Implement
-    # Check some examples at:
-    # http://stackoverflow.com/questions/41190852/most-efficient-way-to-forward-fill-nan-values-in-numpy-array
-    pass
+    prev = np.arange(len(data_column))
+    prev[data_column == 0] = 0
+    prev = np.maximum.accumulate(prev)
+    return data_column[prev]
 
 
-def time_scale(data_column, freq=None):
+def time_scale(data_column, date_column, freq=None):
+    # ISSUE: Weekly was redundant, as daily still provided accurate calculations even with weekly intervals.
+
     if freq == 'monthly':
-        return truncate_column(data_column)
-        # I've left the column truncation inside the time_scale function
-        # rather than leave it at a higher scope.
+        scaled_data = np.empty(shape=(601,), dtype=np.float32)
+        scaled_data[:] = 0
+
+        start_date = np.datetime64('1967-04')
+        date_dict = {}
+        for i in range(0, 601, 1):
+            date_dict[i] = (start_date + np.timedelta64(i, 'M')).astype('datetime64[D]')
+
+        for i in range(0, len(scaled_data), 1):
+            for j in range(0, len(data_column), 1):
+                if date_column[j] == date_dict[i]:
+                    scaled_data[i] = data_column[j]
+
+        return truncate_column(scaled_data)
+
     elif freq == 'daily':
-        # TODO use average to smooth to monthly values
-        pass
-    elif freq == 'weekly':
-        # TODO use average to smooth to monthly values
-        pass
-    elif freq == 'quarterly':
-        # TODO each month of each quarter takes that quarter's values
-        pass
-    elif freq == 'annual':
-        # TODO each month of each year takes that year's values
-        pass
+        scaled_data = np.empty(shape=(18264,), dtype=np.float32)
+        scaled_data[:] = 0
+
+        start_date = np.datetime64('1967-04-01')
+        date_dict = {}
+        for i in range(0, 18264, 1):
+            date_dict[i] = (start_date + np.timedelta64(i, 'D')).astype('datetime64[D]')
+
+        for i in range(0, len(scaled_data), 1):
+            for j in range(0, len(data_column), 1):
+                if date_column[j] == date_dict[i]:
+                    scaled_data[i] = data_column[j]
+
+        for i in range(0, 601, 1):
+            month = np.arange(
+                np.datetime64('1967-04') + np.timedelta64(i, 'M'), (np.datetime64('1967-05') + np.timedelta64(i, 'M')),
+                              dtype='datetime64[D]')
+            ix = np.in1d(list(date_dict.values()), month)
+            scaled_data[i] = np.average(scaled_data[ix])
+
+        return truncate_column(scaled_data)
+
     elif freq is None:
-        # TODO Determine frequency
-        auto_freq = ''
-        return time_scale(data_column, auto_freq)
+        # Added some wriggle room for business days
+        first_date, second_date = date_column[0], date_column[1]
+        daydiff = int((second_date - first_date) / np.timedelta64(1, 'D'))
+        if 1 <= daydiff < 28:
+            return time_scale(data_column, date_column, 'daily')
+        elif 28 <= daydiff:
+            return time_scale(data_column, date_column, 'monthly')
+        #if 60 <= daydiff < 340:
+        #    return time_scale(data_column, date_column, 'quarterly')
+        #elif daydiff <= 340:
+        #    return time_scale(data_column, date_column, 'annual')
+        else:
+            raise ValueError('Negative date difference')
     else:
         raise ValueError('Frequency value not recognized')
-    """
-    There's a lot of leeway here on how to actually implement these, but the best plan is probably allocating a new
-    array of the desired size and iterating through the original, selectively copying the desired values over.  Any
-    array resizing is going to do a reallocation at the C layer anyway, so might as well at the python level.
-    Remember, a new array is a one liner with: np.empty(shape_tuple).fill(np.nan)
-    """
-    """
-    Little note here about if/elif/else statements--can't remember if I've said anything before.  Go ahead and delete
-    this block if I have/once it makes sense.  TL;DR is only use if - else when they accurately describe your problem.
-    For example, (if condition is true) - (else a condition is not true).  We cover the entire space of possibility.
-    Either something is true or it is not.  Using else as a catch-all for a mutable variable is a whole different
-    issue.  In the code above, I could have used else instead of 'elif freq is None' because that's the last condition
-    I expect.  But it is NOT the only possible condition.  freq could be any value (that's the nasty part of python)
-    so we don't want to operate with it if freq isn't a value that we expect.
-
-    By giving if/elif conditions for all expected conditions and using else as a catch-all error condition, we
-    add fairly complicated type checking without much additional effort.
-    """
 
 
-def truncate_column(data_column, max_length=600):
+def truncate_column(data_column, max_length=601):
     """
     Abstraction of numpy slicing operation for single column truncation.
     :param data_column: 1D np.array
     :param max_length: int of truncation index
     :return: np.array
     """
-    assert(len(data_column.shape) == 1)  # Assert data_column is a 1D numpy array
+    assert (len(data_column.shape) == 1)  # Assert data_column is a 1D numpy array
     return data_column[:max_length]
 
 
@@ -95,10 +106,116 @@ def truncate_dataset(dataset, truncation_point):
     :param truncation_point: int of truncation index to test
     :return: np.array
     """
-    assert(len(data_column.shape) == 2)  # Assert data_column is a 2D numpy array
+    assert (len(dataset.shape) == 2)  # Assert data_column is a 2D numpy array
     return dataset[:truncation_point]
 
 
 if __name__ == '__main__':
-    # TODO Unit testing
-    pass
+    import unittest
+
+
+    class UnitTester(unittest.TestCase):
+        def setUp(self):
+            pass
+
+        def test_forward_fill(self):
+            test_data_column_1 = np.array([0, 2, 3, 0, 0], dtype=np.float32)
+            solution_1 = np.array([0, 2, 3, 3, 3], dtype=np.float32)
+            test_result_1 = forward_fill(test_data_column_1)
+
+            self.assertEqual(test_result_1.shape, (5,))
+            self.assertEqual(test_result_1.dtype, np.float32)
+            np.testing.assert_array_equal(test_result_1, solution_1)
+
+            test_data_column_2 = np.array([1, 0, 0, 4.5, 0], dtype=np.float32)
+            solution_2 = np.array([1, 1, 1, 4.5, 4.5], dtype=np.float32)
+            test_result_2 = forward_fill(test_data_column_2)
+
+            self.assertEqual(test_result_2.shape, (5,))
+            self.assertEqual(test_result_2.dtype, np.float32)
+            np.testing.assert_array_equal(test_result_2, solution_2)
+
+        def test_time_scale(self):
+            # monthly
+            test_data_column = np.array([5, 10, 15, 5], dtype=np.float32)
+            test_date_column = np.array(['1967-04-01', '1967-05-01', '1967-06-02', '2017-04-01'], dtype='datetime64[D]')
+            solution = np.empty(shape=(601,), dtype=np.float32)
+            solution[:] = 0
+            solution[0] = 5
+            solution[1] = 10
+            solution[2] = 0
+            solution[-1] = float(5)
+            test_result = time_scale(test_data_column, test_date_column)
+
+            self.assertEqual(test_result.shape, (601,))
+            self.assertEqual(test_result.dtype, np.float32)
+            np.testing.assert_array_equal(test_result, solution)
+
+            # daily
+            test_data_column = np.array([10, 20, 50, 5], dtype=np.float32)
+            test_date_column = np.array(['1967-04-01', '1967-04-02', '1967-06-01', '2017-04-01'], dtype='datetime64[D]')
+            solution = np.empty(shape=(601,), dtype=np.float32)
+            solution[:] = 0
+            solution[0] = 1
+            solution[2] = float(5/3)
+            solution[-1] = float(5)
+            test_result = time_scale(test_data_column, test_date_column)
+
+            self.assertEqual(test_result.shape, (601,))
+            self.assertEqual(test_result.dtype, np.float32)
+            np.testing.assert_array_equal(test_result, solution)
+
+            # weekly
+            test_data_column = np.array([10, 20, 30], dtype=np.float32)
+            test_date_column = np.array(['1967-04-01', '1967-04-08', '1967-04-15'], dtype='datetime64[D]')
+            solution = np.empty(shape=(601,), dtype=np.float32)
+            solution[:] = 0
+            solution[0] = float((10 + 20 + 30) / 30)
+            test_result = time_scale(test_data_column, test_date_column)
+
+            self.assertEqual(test_result.shape, (601,))
+            self.assertEqual(test_result.dtype, np.float32)
+            np.testing.assert_array_equal(test_result, solution)
+
+            # quarterly
+            test_data_column = np.array([30, 20, 10], dtype=np.float32)
+            test_date_column = np.array(['1967-04-01', '1967-07-01', '1967-10-01'], dtype='datetime64[D]')
+            solution = np.empty(shape=(601,), dtype=np.float32)
+            solution[:] = 0
+            solution[0] = 30
+            solution[3] = 20
+            solution[6] = 10
+            test_result = time_scale(test_data_column, test_date_column)
+
+            self.assertEqual(test_result.shape, (601,))
+            self.assertEqual(test_result.dtype, np.float32)
+            np.testing.assert_array_equal(test_result, solution)
+
+            # annually
+            test_data_column = np.array([30, 20, 10], dtype=np.float32)
+            test_date_column = np.array(['1968-01-01', '1969-01-01', '1970-01-01'], dtype='datetime64[D]')
+            solution = np.empty(shape=(601,), dtype=np.float32)
+            solution[:] = 0
+            solution[9] = 30
+            solution[21] = 20
+            solution[33] = 10
+            test_result = time_scale(test_data_column, test_date_column)
+
+            self.assertEqual(test_result.shape, (601,))
+            self.assertEqual(test_result.dtype, np.float32)
+            np.testing.assert_array_equal(test_result, solution)
+
+        def test_truncate_column(self):
+            pass
+
+        def test_truncate_loss(self):
+            pass
+
+        def test_truncate_dataset(self):
+            pass
+
+        def tearDown(self):
+            pass
+
+
+    unittest.main(verbosity=2)
