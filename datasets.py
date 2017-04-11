@@ -1,17 +1,17 @@
+import csv
 from random import random
 from time import sleep
 
 import h5py
-import numpy as np
 import quandl as qd
 
 import settings
-
-import cleaning_functions
+from cleaning_functions import *
 
 s = settings.Settings()
 s.load()
 TOTAL_CALLS = 0
+TOTAL_SLEEP = 0
 AUTH_TOKEN = s.get('auth_code')
 
 
@@ -20,77 +20,92 @@ def gather_datasets():
     Gathers various data from Quandl for usage in project.
     Writes data results to a hdf5 file.
     """
+    def gather_gdp():
+        hdf5 = h5py.File('GDP.hdf5')
+        hdf5.require_group('data')
+        dset = hdf5.create_dataset('data/gdp', shape=(601, 1),
+                                   dtype=np.float32)
 
-    def gather_y():
+        gdp = qd.get("FRED/GDP.1", returns='numpy', collapse='daily',
+                     exclude_column_names=False, start_date='1967-4-1', end_date='2017-4-1')
+
+        gdp.dtype.names = ('Date', 'Value')
+        gdp['Value'] = gdp['Value'].astype(np.float32)
+        gdp['Date'] = gdp['Date'].astype('datetime64[D]')
+        gdp_values = time_scale(gdp['Value'], gdp['Date'])
+        gdp_values = forward_fill(gdp_values)
+
+        hdf5 = h5py.File('GDP.hdf5')
+        dset[0] = gdp_values
+        hdf5.close()
+
+
+
+
+
+    def gather_indicators(start, end):
         global TOTAL_CALLS
+        global TOTAL_SLEEP
         global AUTH_TOKEN
-        calls = []
-        types = ['unemployment', 'payroll', 'gdp', 'cpi']
-        for type in types:
-            calls.append(s.get(type))
-        file_values = h5py.File('y_values.h5', 'w')
-        file_dates = h5py.File('y_dates.h5', 'w')
-        for call, type in zip(calls, types):
-            TOTAL_CALLS += 1
-            print(call)
-            returned_call = None
-            while returned_call is None:
-                try:
-                    returned_call = qd.get(call + ".1", returns='numpy', collapse='monthly',
-                                           exclude_column_names=False, start_date='1967-4-1', end_date='2017-3-1', auth_token=AUTH_TOKEN)
-                    returned_call.dtype.names = ('Date', 'Value')
-                    values = returned_call['Value'].astype(np.float32)
-                    dates = returned_call['Date'].astype('datetime64[D]')
-                    values = cleaning_functions.time_scale(values, dates)
-                except qd.QuandlError:
-                    sleep(60)
-                    pass
-            sleep(random())
 
-            file_values.create_dataset(type, data=value)
-            file_dates.create_dataset(type, data=date)
-        file_dates.close()
-        file_values.close()
+        pos = start
 
-    def gather_x(start, stop, pos):
-        global TOTAL_CALLS
-        global AUTH_TOKEN
-        calls = s.get('features')
-        if stop > len(calls):
-            stop = len(calls)
-        calls = calls[start - 1:stop]
-        file_values = h5py.File('x_values.h5', 'a')
-        file_dates = h5py.File('x_dates.h5', 'a')
-        for call in calls:
-            TOTAL_CALLS += 1
-            print(call[0], pos)
+        with open('quandl_codes.csv', 'r') as f:
+            reader = csv.DictReader(f)
+            data = {}
+            for row in reader:
+                for header, value in row.items():
+                    try:
+                        data[header].append(value)
+                    except KeyError:
+                        data[header] = [value]
+
+        quandl_codes = data['Codes']
+
+        hdf5 = h5py.File('FREDcast.hdf5')
+        hdf5.require_group('data')
+        print(len(quandl_codes))
+        dset = hdf5.create_dataset('data/sample_raw', shape=(601, len(quandl_codes)),
+                                   dtype=np.float32)
+        # In production, we'll probably use hdf5.require_dataset('data/raw'), after creating the empty dataset once.
+
+        if start > len(quandl_codes):
+            start = len(quandl_codes) - 1
+        if end > len(quandl_codes):
+            end = len(quandl_codes)
+        for i in range(start, end):
             pos += 1
-            if TOTAL_CALLS % 2000 == 0:
-                sleep(120)
-            returned_call = None
-            while returned_call is None:
+            print(quandl_codes[i], pos)
+
+            quandl_code = quandl_codes[i]
+            # base_array = np.empty((601,)).fill(0)
+            quandl_values = None
+            while quandl_values is None:
                 try:
-                    returned_call = qd.get(call[0] + ".1", returns='numpy', collapse='monthly',
-                                           exclude_column_names=False, start_date='1967-3-1', end_date='2017-3-1',
-                                           authtoken=AUTH_TOKEN)
-                    returned_call.dtype.names = ('Date', 'Value')
-                    value = returned_call['Value'].astype(np.float32)
-                    date = returned_call['Date'].astype('S10')
+                    quandl_values = qd.get(quandl_code + ".1", returns='numpy', collapse='daily',
+                                           exclude_column_names=False, start_date='1967-4-1', end_date='2017-4-1',
+                                           auth_token=AUTH_TOKEN)
+                    sleepytime = random()
+                    sleep(sleepytime)
+                    TOTAL_SLEEP += sleepytime
+                    TOTAL_CALLS += 1
                 except qd.QuandlError as e:
-                    print(str(e) + 'Ignoring, retrying in 1 minute.')
+                    print(str(e) + '. IGNORING, retrying in 1 minute.')
                     sleep(60)
+                    TOTAL_SLEEP += 60
                     pass
-            sleep(random())
-            file_values.create_dataset(call[0], data=value)
-            file_dates.create_dataset(call[0], data=date)
-        file_values.close()
-        file_dates.close()
+            quandl_values.dtype.names = ('Date', 'Value')
+            quandl_values['Value'] = quandl_values['Value'].astype(np.float32)
+            quandl_values['Date'] = quandl_values['Date'].astype('datetime64[D]')
+            time_scaled = time_scale(quandl_values['Value'], quandl_values['Date'])
+            forward_filled = forward_fill(time_scaled)
+            assert (forward_filled.shape == (601,))
+            dset[i] = forward_filled
 
-    gather_y()
-    gather_x(s.get('start'), s.get('end'), s.get('start'))
+        hdf5.close()
 
-    # len(s.get('features'))
-
+    #gather_gdp()
+    gather_indicators(s.get('start'), s.get('end'))
 
 if __name__ == '__main__':
     gather_datasets()
