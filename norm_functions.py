@@ -114,15 +114,15 @@ def normalize_dataset(dataset, norm_fn, second_norm=None):
     Then use np.apply_along_axis to map norm_fn across the vertical axis of the dataset.
     Return the new array
     """
-    '''
     if norm_fn is not None:
         if norm_fn is 'linear_residual':
-            return np.apply_along_axis(lambda x: linear_residual(x, second_norm))
+            return np.apply_along_axis(lambda x: linear_residual(x, second_norm), dataset)
         elif norm_fn is 'exp_residual':
-            return np.apply_along_axis(lambda x: exp_residual(x, second_norm))
+            return np.apply_along_axis(lambda x: exp_residual(x, second_norm), dataset)
         elif norm_fn is 'gdp_residual':
-            return np.apply_along_axis(lambda x: gdp_residual(x, second_norm))
-    return dataset'''
+            return np.apply_along_axis(lambda x: gdp_residual(x, second_norm), dataset)
+    else:
+        raise ValueError('Missing dataset value!')
 
 
 if __name__ == '__main__':
