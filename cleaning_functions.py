@@ -206,13 +206,30 @@ if __name__ == '__main__':
             np.testing.assert_array_equal(test_result, solution)
 
         def test_truncate_column(self):
-            pass
+            test_data_column = np.empty(shape=(700,), dtype=np.float32)
+            solution = np.empty(shape=(601,), dtype=np.float32)
+            test_result = truncate_column(test_data_column)
+
+            self.assertEqual(test_result.shape, (601,))
+            self.assertEqual(test_result.dtype, np.float32)
 
         def test_truncate_loss(self):
-            pass
+            # ISSUE: Not certain if I tested this one correctly.
+            test_data_column = np.empty(shape=(300, 2), dtype=np.float32)
+            test_data_column[:150] = np.nan
+            solution = np.empty(shape=(300, 2), dtype=np.float32)
+            solution[:150] = np.nan
+            test_result = truncate_loss(test_data_column, 150)
+
+            self.assertEqual(test_result, float(0))
 
         def test_truncate_dataset(self):
-            pass
+            test_data_column = np.empty(shape=(700, 2), dtype=np.float32)
+            solution = np.empty(shape=(601, 2), dtype=np.float32)
+            test_result = truncate_dataset(test_data_column, 601)
+
+            self.assertEqual(test_result.shape, (601, 2))
+            self.assertEqual(test_result.dtype, np.float32)
 
         def tearDown(self):
             pass

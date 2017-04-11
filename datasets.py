@@ -1,4 +1,3 @@
-import sys
 from random import random
 from time import sleep
 
@@ -7,6 +6,8 @@ import numpy as np
 import quandl as qd
 
 import settings
+
+import cleaning_functions
 
 s = settings.Settings()
 s.load()
@@ -36,11 +37,11 @@ def gather_datasets():
             while returned_call is None:
                 try:
                     returned_call = qd.get(call + ".1", returns='numpy', collapse='monthly',
-                                           exclude_column_names=False, start_date='1967-3-1', end_date='2017-3-1',
-                                           authtoken=AUTH_TOKEN)
+                                           exclude_column_names=False, start_date='1967-4-1', end_date='2017-3-1', auth_token=AUTH_TOKEN)
                     returned_call.dtype.names = ('Date', 'Value')
-                    value = returned_call['Value'].astype(np.float32)
-                    date = returned_call['Date'].astype('S10')
+                    values = returned_call['Value'].astype(np.float32)
+                    dates = returned_call['Date'].astype('datetime64[D]')
+                    values = cleaning_functions.time_scale(values, dates)
                 except qd.QuandlError:
                     sleep(60)
                     pass
@@ -88,7 +89,8 @@ def gather_datasets():
     gather_y()
     gather_x(s.get('start'), s.get('end'), s.get('start'))
 
-    #len(s.get('features'))
+    # len(s.get('features'))
+
 
 if __name__ == '__main__':
     gather_datasets()
