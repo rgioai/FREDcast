@@ -81,10 +81,6 @@ def exp_residual(data_column, second_norm=None):
     # CAGR for column, generate inference_function
     # x - inference_function(x)
 
-    # dates_file = h5py.File('y_dates.h5', 'r')
-    # dates = dates_file['gdp']
-    # print(np.asarray(dates))
-
     copy = np.empty_like(data_column)
     copy[:] = data_column
 
@@ -118,7 +114,7 @@ def gdp_residual(data_column, second_norm=None):
 
     # hdf5 file with gdp data
     hdf5 = h5py.File('GDP.hdf5')
-    gdp = np.asarray(hdf5['GDP'])
+    gdp = np.asarray(hdf5['data/gdp'])
     hdf5.close()
 
     for i in range(0, len(copy)):

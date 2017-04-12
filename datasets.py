@@ -20,9 +20,11 @@ def gather_datasets():
     Gathers various data from Quandl for usage in project.
     Writes data results to a hdf5 file.
     """
+
     def gather_gdp():
         hdf5 = h5py.File('GDP.hdf5')
         hdf5.require_group('data')
+
         dset = hdf5.create_dataset('data/gdp', shape=(601, 1),
                                    dtype=np.float32)
 
@@ -36,12 +38,8 @@ def gather_datasets():
         gdp_values = forward_fill(gdp_values)
 
         hdf5 = h5py.File('GDP.hdf5')
-        dset[0] = gdp_values
+        dset[:, 0] = gdp_values
         hdf5.close()
-
-
-
-
 
     def gather_indicators(start, end):
         global TOTAL_CALLS
@@ -64,7 +62,8 @@ def gather_datasets():
 
         hdf5 = h5py.File('FREDcast.hdf5')
         hdf5.require_group('data')
-        print(len(quandl_codes))
+
+        # ISSUE: Can't recreate this after initial creation, error on following runs, will work around this ASAP
         dset = hdf5.create_dataset('data/sample_raw', shape=(601, len(quandl_codes)),
                                    dtype=np.float32)
         # In production, we'll probably use hdf5.require_dataset('data/raw'), after creating the empty dataset once.
@@ -78,7 +77,6 @@ def gather_datasets():
             print(quandl_codes[i], pos)
 
             quandl_code = quandl_codes[i]
-            # base_array = np.empty((601,)).fill(0)
             quandl_values = None
             while quandl_values is None:
                 try:
@@ -100,12 +98,13 @@ def gather_datasets():
             time_scaled = time_scale(quandl_values['Value'], quandl_values['Date'])
             forward_filled = forward_fill(time_scaled)
             assert (forward_filled.shape == (601,))
-            dset[i] = forward_filled
+            dset[:, i] = forward_filled
 
         hdf5.close()
 
-    #gather_gdp()
+    # gather_gdp()
     gather_indicators(s.get('start'), s.get('end'))
+
 
 if __name__ == '__main__':
     gather_datasets()
