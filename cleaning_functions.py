@@ -18,14 +18,22 @@ def time_scale(data_column, date_column, freq=None):
         scaled_data[:] = 0
 
         start_date = np.datetime64('1967-04')
-        date_dict = {}
+        date_list = []
         for i in range(0, 601, 1):
-            date_dict[i] = (start_date + np.timedelta64(i, 'M')).astype('datetime64[D]')
+            date_list.append((start_date + np.timedelta64(i, 'M')).astype(dt.datetime))
 
-        for i in range(0, len(scaled_data), 1):
-            for j in range(0, len(data_column), 1):
-                if date_column[j] == date_dict[i]:
-                    scaled_data[i] = data_column[j]
+        date_list = np.asarray(date_list)
+
+        # for i in range(0, len(scaled_data), 1):
+        #     for j in range(0, len(data_column), 1):
+        #         if date_column[j] == date_dict[i]:
+        #             scaled_data[i] = data_column[j]
+
+        indices_dl = np.arange(date_list.shape[0])[np.in1d(date_list, date_column)]
+        indices_dc = np.arange(date_column.shape[0])[np.in1d(date_column, date_list)]
+
+        for i in range(0, len(indices_dl), 1):
+            scaled_data[indices_dl[i]] = data_column[indices_dc[i]]
 
         return truncate_column(scaled_data)
 
@@ -34,21 +42,33 @@ def time_scale(data_column, date_column, freq=None):
         scaled_data[:] = 0
 
         start_date = np.datetime64('1967-04-01')
-        date_dict = {}
+        date_list = []
         for i in range(0, 18264, 1):
-            date_dict[i] = (start_date + np.timedelta64(i, 'D')).astype('datetime64[D]')
+            date_list.append((start_date + np.timedelta64(i, 'D')).astype(dt.datetime))
 
-        for i in range(0, len(scaled_data), 1):
-            for j in range(0, len(data_column), 1):
-                if date_column[j] == date_dict[i]:
-                    scaled_data[i] = data_column[j]
+        date_list = np.asarray(date_list)
 
+        # for i in range(0, len(scaled_data), 1):
+        #     for j in range(0, len(data_column), 1):
+        #         if date_column[j] == date_dict[i]:
+        #             scaled_data[i] = data_column[j]
+
+        indices_dl = np.arange(date_list.shape[0])[np.in1d(date_list, date_column)]
+        indices_dc = np.arange(date_column.shape[0])[np.in1d(date_column, date_list)]
+
+        for i in range(0, len(indices_dl), 1):
+            scaled_data[indices_dl[i]] = data_column[indices_dc[i]]
+
+        start, stop = 0, 0
         for i in range(0, 601, 1):
             month = np.arange(
                 np.datetime64('1967-04') + np.timedelta64(i, 'M'), (np.datetime64('1967-05') + np.timedelta64(i, 'M')),
                 dtype='datetime64[D]')
-            ix = np.in1d(list(date_dict.values()), month)
-            scaled_data[i] = np.average(scaled_data[ix])
+
+            start = stop
+            stop += month.shape[0]
+
+            scaled_data[i] = np.average(scaled_data[start:stop])
 
         return truncate_column(scaled_data)
 
@@ -147,7 +167,7 @@ if __name__ == '__main__':
             solution[0] = 5
             solution[1] = 10
             solution[2] = 0
-            solution[-1] = float(5)
+            solution[-1] = 5
             test_result = time_scale(test_data_column, test_date_column)
 
             self.assertEqual(test_result.shape, (601,))
