@@ -10,6 +10,7 @@ from cleaning_functions import *
 
 s = settings.Settings()
 s.load()
+START_TIME = dt.datetime.now()
 TOTAL_CALLS = 0
 TOTAL_SLEEP = 0
 AUTH_TOKEN = s.get('auth_code')
@@ -42,6 +43,7 @@ def gather_datasets():
         hdf5.close()
 
     def gather_indicators(start, end):
+        global START_TIME
         global TOTAL_CALLS
         global TOTAL_SLEEP
         global AUTH_TOKEN
@@ -101,6 +103,9 @@ def gather_datasets():
             dset[:, i] = forward_filled
 
         hdf5.close()
+        print('Total runtime:' + str(dt.datetime.now() - START_TIME))
+        print('Total calls:' + str(TOTAL_CALLS))
+        print('Time spent waiting (in seconds):' + str(TOTAL_SLEEP))
 
     # gather_gdp()
     gather_indicators(s.get('start'), s.get('end'))
