@@ -11,7 +11,7 @@ def forward_fill(data_column):
 
 
 def time_scale(data_column, date_column, freq=None):
-    # ISSUE: Removed redundancies, as they still provided accurate calculations even with different 'intervals'.
+    # Removed redundancies, as they still provided accurate calculations even with different 'intervals'.
 
     if freq == 'monthly':
         scaled_data = np.empty(shape=(601,), dtype=np.float32)
@@ -23,11 +23,6 @@ def time_scale(data_column, date_column, freq=None):
             date_list.append((start_date + np.timedelta64(i, 'M')).astype(dt.datetime))
 
         date_list = np.asarray(date_list)
-
-        # for i in range(0, len(scaled_data), 1):
-        #     for j in range(0, len(data_column), 1):
-        #         if date_column[j] == date_dict[i]:
-        #             scaled_data[i] = data_column[j]
 
         indices_dl = np.arange(date_list.shape[0])[np.in1d(date_list, date_column)]
         indices_dc = np.arange(date_column.shape[0])[np.in1d(date_column, date_list)]
@@ -47,11 +42,6 @@ def time_scale(data_column, date_column, freq=None):
             date_list.append((start_date + np.timedelta64(i, 'D')).astype(dt.datetime))
 
         date_list = np.asarray(date_list)
-
-        # for i in range(0, len(scaled_data), 1):
-        #     for j in range(0, len(data_column), 1):
-        #         if date_column[j] == date_dict[i]:
-        #             scaled_data[i] = data_column[j]
 
         indices_dl = np.arange(date_list.shape[0])[np.in1d(date_list, date_column)]
         indices_dc = np.arange(date_column.shape[0])[np.in1d(date_column, date_list)]

@@ -1,12 +1,12 @@
 import csv
-from random import random
+import os
 from time import sleep
 
-import h5py
 import quandl as qd
 
 import settings
 from cleaning_functions import *
+from norm_functions import *
 
 s = settings.Settings()
 s.load()
@@ -16,100 +16,196 @@ TOTAL_SLEEP = 0
 AUTH_TOKEN = s.get('auth_code')
 
 
-def gather_datasets():
-    """
-    Gathers various data from Quandl for usage in project.
-    Writes data results to a hdf5 file.
-    """
+def gather_gdp():
+    hdf5 = h5py.File('GDP.hdf5')
+    hdf5.require_group('data')
 
-    def gather_gdp():
-        hdf5 = h5py.File('GDP.hdf5')
-        hdf5.require_group('data')
+    dset = hdf5.create_dataset('data/gdp', shape=(601, 1),
+                               dtype=np.float32)
 
-        dset = hdf5.create_dataset('data/gdp', shape=(601, 1),
-                                   dtype=np.float32)
+    gdp = qd.get("FRED/GDP.1", returns='numpy', collapse='daily',
+                 exclude_column_names=False, start_date='1967-4-1', end_date='2017-4-1')
 
-        gdp = qd.get("FRED/GDP.1", returns='numpy', collapse='daily',
-                     exclude_column_names=False, start_date='1967-4-1', end_date='2017-4-1')
+    gdp.dtype.names = ('Date', 'Value')
+    gdp['Value'] = gdp['Value'].astype(np.float32)
+    gdp['Date'] = gdp['Date'].astype('datetime64[D]')
+    gdp_values = time_scale(gdp['Value'], gdp['Date'])
+    gdp_values = forward_fill(gdp_values)
 
-        gdp.dtype.names = ('Date', 'Value')
-        gdp['Value'] = gdp['Value'].astype(np.float32)
-        gdp['Date'] = gdp['Date'].astype('datetime64[D]')
-        gdp_values = time_scale(gdp['Value'], gdp['Date'])
-        gdp_values = forward_fill(gdp_values)
+    hdf5 = h5py.File('GDP.hdf5')
+    dset[:, 0] = gdp_values
+    hdf5.close()
 
-        hdf5 = h5py.File('GDP.hdf5')
-        dset[:, 0] = gdp_values
-        hdf5.close()
 
-    def gather_indicators(start, end):
-        global START_TIME
-        global TOTAL_CALLS
-        global TOTAL_SLEEP
-        global AUTH_TOKEN
+def gather_indicators(start, end, append=False):
+    global START_TIME
+    global TOTAL_CALLS
+    global TOTAL_SLEEP
+    global AUTH_TOKEN
 
-        pos = start
+    # ISSUE: Datasets are hard to edit once they're already set.
+    # The current workaround is:
+    # Create a backup of the old FREDcast.hdf5 as FREDcast.hdf5.bak
+    # Load the incomplete dataset from FREDcast.hdf5 to memory, del the one in the file
+    # Assign the now free link to the last dset, and begin editing as normal
 
-        with open('quandl_codes.csv', 'r') as f:
-            reader = csv.DictReader(f)
-            data = {}
-            for row in reader:
-                for header, value in row.items():
-                    try:
-                        data[header].append(value)
-                    except KeyError:
-                        data[header] = [value]
+    if append is True:
+        hdf5_old = h5py.File('FREDcast.hdf5')
+        old_dset = np.asarray(hdf5_old['data/raw'])
 
-        quandl_codes = data['Codes']
+        old_norm_fns = [np.asarray(hdf5_old['data/norm_data/linear_residual']),
+                        np.asarray(hdf5_old['data/norm_data/linear_residual_zero_one']),
+                        np.asarray(hdf5_old['data/norm_data/linear_residual_percent_change']),
+                        np.asarray(hdf5_old['data/norm_data/linear_residual_normal_dist']),
+                        np.asarray(hdf5_old['data/norm_data/exp_residual']),
+                        np.asarray(hdf5_old['data/norm_data/exp_residual_zero_one']),
+                        np.asarray(hdf5_old['data/norm_data/exp_residual_percent_change']),
+                        np.asarray(hdf5_old['data/norm_data/exp_residual_normal_dist']),
+                        np.asarray(hdf5_old['data/norm_data/gdp_residual']),
+                        np.asarray(hdf5_old['data/norm_data/gdp_residual_zero_one']),
+                        np.asarray(hdf5_old['data/norm_data/gdp_residual_percent_change']),
+                        np.asarray(hdf5_old['data/norm_data/gdp_residual_normal_dist'])]
 
-        hdf5 = h5py.File('FREDcast.hdf5')
-        hdf5.require_group('data')
+        hdf5_old.close()
+        os.rename(os.path.realpath('FREDcast.hdf5'), os.path.realpath('FREDcast.hdf5') + '.bak')
 
-        # ISSUE: Can't recreate this after initial creation, error on following runs, will work around this ASAP
-        dset = hdf5.create_dataset('data/sample_raw', shape=(601, len(quandl_codes)),
-                                   dtype=np.float32)
-        # In production, we'll probably use hdf5.require_dataset('data/raw'), after creating the empty dataset once.
+    pos = start
 
-        if start > len(quandl_codes):
-            start = len(quandl_codes) - 1
-        if end > len(quandl_codes):
-            end = len(quandl_codes)
-        for i in range(start, end):
-            pos += 1
-            print(quandl_codes[i], pos)
-
-            quandl_code = quandl_codes[i]
-            quandl_values = None
-            while quandl_values is None:
+    with open('quandl_codes.csv', 'r') as f:
+        reader = csv.DictReader(f)
+        data = {}
+        for row in reader:
+            for header, value in row.items():
                 try:
-                    quandl_values = qd.get(quandl_code + ".1", returns='numpy', collapse='daily',
-                                           exclude_column_names=False, start_date='1967-4-1', end_date='2017-4-1',
-                                           auth_token=AUTH_TOKEN)
-                    sleepytime = random()
-                    sleep(sleepytime)
-                    TOTAL_SLEEP += sleepytime
-                    TOTAL_CALLS += 1
-                except qd.QuandlError as e:
-                    print(str(e) + '. IGNORING, retrying in 1 minute.')
-                    sleep(60)
-                    TOTAL_SLEEP += 60
-                    pass
-            quandl_values.dtype.names = ('Date', 'Value')
-            quandl_values['Value'] = quandl_values['Value'].astype(np.float32)
-            quandl_values['Date'] = quandl_values['Date'].astype('datetime64[D]')
-            time_scaled = time_scale(quandl_values['Value'], quandl_values['Date'])
-            forward_filled = forward_fill(time_scaled)
-            assert (forward_filled.shape == (601,))
-            dset[:, i] = forward_filled
+                    data[header].append(value)
+                except KeyError:
+                    data[header] = [value]
 
-        hdf5.close()
-        print('Total runtime:' + str(dt.datetime.now() - START_TIME))
-        print('Total calls:' + str(TOTAL_CALLS))
-        print('Time spent waiting (in seconds):' + str(TOTAL_SLEEP))
+    quandl_codes = data['Codes']
 
-    # gather_gdp()
-    gather_indicators(s.get('start'), s.get('end'))
+    hdf5 = h5py.File('FREDcast.hdf5')
+    hdf5.require_group('data')
+
+    if append is True:
+        dset = hdf5.create_dataset('data/raw', data=old_dset)
+    if append is False:
+        dset = hdf5.create_dataset('data/raw', shape=(601, len(quandl_codes)),
+                                   dtype=np.float32)
+
+    if start > len(quandl_codes):
+        start = len(quandl_codes) - 1
+    if end > len(quandl_codes):
+        end = len(quandl_codes)
+    for i in range(start, end):
+        pos += 1
+        print(quandl_codes[i], pos)
+
+        quandl_code = quandl_codes[i]
+        quandl_values = None
+        while quandl_values is None:
+            try:
+                quandl_values = qd.get(quandl_code + ".1", returns='numpy', collapse='daily',
+                                       exclude_column_names=False, start_date='1967-4-1', end_date='2017-4-1',
+                                       auth_token=AUTH_TOKEN)
+                sleep(0.1)
+                TOTAL_SLEEP += 0.1
+                TOTAL_CALLS += 1
+            except qd.QuandlError as e:
+                print(str(e) + '. IGNORING, retrying in 1 minute.')
+                sleep(60)
+                TOTAL_SLEEP += 60
+                pass
+        quandl_values.dtype.names = ('Date', 'Value')
+        quandl_values['Value'] = quandl_values['Value'].astype(np.float32)
+        quandl_values['Date'] = quandl_values['Date'].astype('datetime64[D]')
+        time_scaled = time_scale(quandl_values['Value'], quandl_values['Date'])
+        forward_filled = forward_fill(time_scaled)
+        assert (forward_filled.shape == (601,))
+        dset[:, i] = forward_filled
+
+    if append is True:
+        new_data = normalize_dataset(dset[:, start:end], linear_residual)
+        hdf5.create_dataset('data/norm_data/linear_residual',
+                            data=np.concatenate((old_norm_fns[0], new_data)))
+
+        new_data = normalize_dataset(dset[:, start:end], linear_residual, zero_one)
+        hdf5.create_dataset('data/norm_data/linear_residual_zero_one',
+                            data=np.concatenate((old_norm_fns[1], new_data)))
+
+        new_data = normalize_dataset(dset[:, start:end], linear_residual, percent_change)
+        hdf5.create_dataset('data/norm_data/linear_residual_percent_change',
+                            data=np.concatenate((old_norm_fns[2], new_data)))
+
+        new_data = normalize_dataset(dset[:, start:end], linear_residual, normal_dist)
+        hdf5.create_dataset('data/norm_data/linear_residual_normal_dist',
+                            data=np.concatenate((old_norm_fns[3], new_data)))
+
+        new_data = normalize_dataset(dset[:, start:end], exp_residual)
+        hdf5.create_dataset('data/norm_data/exp_residual',
+                            data=np.concatenate((old_norm_fns[4], new_data)))
+
+        new_data = normalize_dataset(dset[:, start:end], exp_residual, zero_one)
+        hdf5.create_dataset('data/norm_data/exp_residual_zero_one',
+                            data=np.concatenate((old_norm_fns[5], new_data)))
+
+        new_data = normalize_dataset(dset[:, start:end], exp_residual, percent_change)
+        hdf5.create_dataset('data/norm_data/exp_residual_percent_change',
+                            data=np.concatenate((old_norm_fns[6], new_data)))
+
+        new_data = normalize_dataset(dset[:, start:end], exp_residual, normal_dist)
+        hdf5.create_dataset('data/norm_data/exp_residual_normal_dist',
+                            data=np.concatenate((old_norm_fns[7], new_data)))
+
+        new_data = normalize_dataset(dset[:, start:end], gdp_residual)
+        hdf5.create_dataset('data/norm_data/gdp_residual',
+                            data=np.concatenate((old_norm_fns[8], new_data)))
+
+        new_data = normalize_dataset(dset[:, start:end], gdp_residual, zero_one)
+        hdf5.create_dataset('data/norm_data/gdp_residual_zero_one',
+                            data=np.concatenate((old_norm_fns[9], new_data)))
+
+        new_data = normalize_dataset(dset[:, start:end], gdp_residual, percent_change)
+        hdf5.create_dataset('data/norm_data/gdp_residual_percent_change',
+                            data=np.concatenate((old_norm_fns[10], new_data)))
+
+        new_data = normalize_dataset(dset[:, start:end], gdp_residual, normal_dist)
+        hdf5.create_dataset('data/norm_data/gdp_residual_normal_dist',
+                            data=np.concatenate((old_norm_fns[11], new_data)))
+
+    if append is False:
+        hdf5.create_dataset('data/norm_data/linear_residual',
+                            data=normalize_dataset(dset[:, start:end], linear_residual))
+        hdf5.create_dataset('data/norm_data/linear_residual_zero_one',
+                            data=normalize_dataset(dset[:, start:end], linear_residual, zero_one))
+        hdf5.create_dataset('data/norm_data/linear_residual_percent_change',
+                            data=normalize_dataset(dset[:, start:end], linear_residual, percent_change))
+        hdf5.create_dataset('data/norm_data/linear_residual_normal_dist',
+                            data=normalize_dataset(dset[:, start:end], linear_residual, normal_dist))
+
+        hdf5.create_dataset('data/norm_data/exp_residual',
+                            data=normalize_dataset(dset[:, start:end], exp_residual))
+        hdf5.create_dataset('data/norm_data/exp_residual_zero_one',
+                            data=normalize_dataset(dset[:, start:end], exp_residual, zero_one))
+        hdf5.create_dataset('data/norm_data/exp_residual_percent_change',
+                            data=normalize_dataset(dset[:, start:end], exp_residual, percent_change))
+        hdf5.create_dataset('data/norm_data/exp_residual_normal_dist',
+                            data=normalize_dataset(dset[:, start:end], exp_residual, normal_dist))
+
+        hdf5.create_dataset('data/norm_data/gdp_residual',
+                            data=normalize_dataset(dset[:, start:end], gdp_residual))
+        hdf5.create_dataset('data/norm_data/gdp_residual_zero_one',
+                            data=normalize_dataset(dset[:, start:end], gdp_residual, zero_one))
+        hdf5.create_dataset('data/norm_data/gdp_residual_percent_change',
+                            data=normalize_dataset(dset[:, start:end], gdp_residual, percent_change))
+        hdf5.create_dataset('data/norm_data/gdp_residual_normal_dist',
+                            data=normalize_dataset(dset[:, start:end], gdp_residual, normal_dist))
+
+    hdf5.close()
+    print('Total runtime:' + str(dt.datetime.now() - START_TIME))
+    print('Total calls:' + str(TOTAL_CALLS))
+    print('Time spent waiting (in seconds):' + str(TOTAL_SLEEP))
 
 
 if __name__ == '__main__':
-    gather_datasets()
+    gather_indicators(0, 10, False)
+    gather_indicators(10, 20, True)
