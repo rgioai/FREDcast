@@ -124,10 +124,6 @@ def gather_indicators(start, end, append=False):
         dset[:, i] = forward_filled
 
     if append is True:
-        new_data = normalize_dataset(dset[:, start:end], linear_residual)
-        hdf5.create_dataset('data/norm_data/linear_residual',
-                            data=np.concatenate((old_norm_fns[0], new_data)))
-
         n_dset1 = hdf5.create_dataset('data/norm_data/linear_residual', data=old_norm_fns[0])
         n_dset1[:, start:end] = normalize_dataset(dset[:, start:end], linear_residual)
 
