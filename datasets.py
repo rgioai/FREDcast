@@ -219,6 +219,6 @@ def gather_indicators(start, end, append=False):
 
 if __name__ == '__main__':
     gather_indicators(0, 1000, False)
-    for i in range(1000, 300000, 1000):
-        gather_indicators(i, i+1000, True)
+    #for i in range(1000, 300000, 1000):
+        #gather_indicators(i, i+1000, True)
 
