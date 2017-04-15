@@ -18,7 +18,6 @@ AUTH_TOKEN = s.get('auth_code')
 
 def gather_gdp():
     hdf5 = h5py.File('GDP.hdf5')
-    hdf5.require_group('data')
 
     dset = hdf5.create_dataset('data/gdp', shape=(601, 1),
                                dtype=np.float32)
@@ -219,5 +218,7 @@ def gather_indicators(start, end, append=False):
 
 
 if __name__ == '__main__':
-    gather_indicators(0, 10, False)
-    gather_indicators(10, 20, True)
+    gather_indicators(0, 1000, False)
+    for i in range(1000, 300000, 1000):
+        gather_indicators(i, i+1000, True)
+

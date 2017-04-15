@@ -7,7 +7,9 @@ def forward_fill(data_column):
     prev = np.arange(len(data_column))
     prev[data_column == 0] = 0
     prev = np.maximum.accumulate(prev)
-    return data_column[prev]
+    filled = data_column[prev]
+    filled[filled == 0] = np.nan
+    return filled
 
 
 def time_scale(data_column, date_column, freq=None):
@@ -132,7 +134,7 @@ if __name__ == '__main__':
 
         def test_forward_fill(self):
             test_data_column_1 = np.array([0, 2, 3, 0, 0], dtype=np.float32)
-            solution_1 = np.array([0, 2, 3, 3, 3], dtype=np.float32)
+            solution_1 = np.array([np.nan, 2, 3, 3, 3], dtype=np.float32)
             test_result_1 = forward_fill(test_data_column_1)
 
             self.assertEqual(test_result_1.shape, (5,))

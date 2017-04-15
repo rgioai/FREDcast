@@ -7,11 +7,13 @@ def zero_one(data_column):
     copy = np.empty_like(data_column)
     copy[:] = data_column
 
-    max = np.amax(copy)
-    min = np.amin(copy)
+    max = np.nanmax(copy)
+    min = np.nanmin(copy)
 
     def norm(n):
-        return (n - min) / (max - min)
+        if not np.isnan(n):
+            return (n - min) / (max - min)
+        return n
 
     vfunc = np.vectorize(norm)
     return vfunc(copy)
@@ -26,8 +28,13 @@ def percent_change(data_column):
     n = np.empty_like(data_column)
     n[:] = data_column
 
-    for i in range(0, len(copy)):
-        if i == 0:
+    try:
+        start_point = np.argwhere(np.isnan(copy))[-1][0] + 1
+    except IndexError:
+        start_point = 0
+
+    for i in range(start_point, len(copy)):
+        if i == start_point:
             copy[i] = 0
         else:
             if n[i - 1] == 0:
@@ -43,11 +50,13 @@ def normal_dist(data_column):
     copy = np.empty_like(data_column)
     copy[:] = data_column
 
-    mean = np.mean(copy)
-    std = np.std(copy)
+    mean = np.nanmean(copy)
+    std = np.nanstd(copy)
 
     def norm(n):
-        return (n - mean) / std
+        if not np.isnan(n):
+            return (n - mean) / std
+        return n
 
     vfunc = np.vectorize(norm)
     return vfunc(copy)
@@ -60,13 +69,15 @@ def linear_residual(data_column, second_norm=None):
     copy = np.empty_like(data_column)
     copy[:] = data_column
 
-    x = np.arange(1, len(copy) + 1).astype(np.float32)
-    y = copy
+    y = copy[~np.isnan(copy)]
+    x = np.arange(1, len(y) + 1).astype(np.float32)
 
     line = np.polyfit(x, y, 1)
 
     def norm(n):
-        return n - ((line[0] * n) + line[1])
+        if not np.isnan(n):
+            return n - ((line[0] * n) + line[1])
+        return n
 
     vfunc = np.vectorize(norm)
     first_norm = vfunc(copy)
@@ -84,15 +95,24 @@ def exp_residual(data_column, second_norm=None):
     copy = np.empty_like(data_column)
     copy[:] = data_column
 
-    year_dif = data_column.size / 4
+    year_dif = data_column.size / 12
 
     def cagr_func(f, l, n):
-        return ((l / f) ** round(1. / n)) - 1
+        return ((l / f) ** (1 / n)) - 1
 
-    cagr = cagr_func(copy[np.nonzero(copy)[0][0]], copy[np.nonzero(copy)[0][-1]], year_dif)
+    try:
+        start_point = np.argwhere(np.isnan(copy))[-1][0] + 1
+    except IndexError:
+        start_point = 0
+
+    first = copy[start_point]
+    last = copy[-1]
+    cagr = cagr_func(first, last, year_dif)
 
     def norm(n):
-        return n - cagr
+        if not np.isnan(n):
+            return n - cagr
+        return n
 
     vfunc = np.vectorize(norm)
     first_norm = vfunc(copy)
@@ -117,13 +137,19 @@ def gdp_residual(data_column, second_norm=None):
     gdp = np.asarray(hdf5['data/gdp'])
     hdf5.close()
 
-    for i in range(0, len(copy)):
-        if i == 0:
+    try:
+        start_point = np.argwhere(np.isnan(copy))[-1][0] + 1
+    except IndexError:
+        start_point = 0
+
+    for i in range(start_point, len(copy)):
+        if i == start_point:
             copy[i] = 0
         else:
             if gdp[i - 1] == 0:
                 copy[i] = 0
-            copy[i] = (n[i] - ((gdp[i] - gdp[i - 1]) / gdp[i - 1]))
+            else:
+                copy[i] = (n[i] - ((gdp[i] - gdp[i - 1]) / gdp[i - 1]))
 
     if second_norm is not None:
         return second_norm(copy).astype(np.float32)
@@ -220,7 +246,7 @@ if __name__ == '__main__':
 
         def test_exp_residual(self):
             test_data_column_a = np.array([1, 5, 7, 8, 11], dtype=np.float32)
-            solution = np.array([-9, -5, -3, -2, 1], dtype=np.float32)
+            solution = np.array([-313.749329, -309.749329, -307.749329, -306.749329, -303.749329], dtype=np.float32)
             test_result = exp_residual(test_data_column_a, second_norm=None)
 
             self.assertEqual(test_result.shape, (5,))
@@ -236,12 +262,12 @@ if __name__ == '__main__':
             np.testing.assert_array_equal(test_result, solution)
 
             test_data_column_c = np.array([1, 5, 7, 8, 11], dtype=np.float32)
-            solution = np.array([0, -0.444444, -0.4, -0.333333, -1.5], dtype=np.float32)
+            solution = np.array([0, -0.012749, -0.006457, -0.003249, -0.00978], dtype=np.float32)
             test_result = exp_residual(test_data_column_c, second_norm=percent_change)
 
             self.assertEqual(test_result.shape, (5,))
             self.assertEqual(test_result.dtype, np.float32)
-            np.testing.assert_array_almost_equal_nulp(test_result, solution, nulp=15)
+            np.testing.assert_array_almost_equal_nulp(test_result, solution, nulp=1708)
 
             test_data_column_d = np.array([1, 5, 7, 8, 11], dtype=np.float32)
             solution = np.array([-1.625209, -0.42135, 0.180579, 0.481543, 1.384437], dtype=np.float32)
@@ -353,9 +379,9 @@ if __name__ == '__main__':
             # exp residual
             test_dataset_e = np.hstack((test_data_column_1, test_data_column_2))
 
-            solution_1 = np.array([8, 18, 28], dtype=np.float32)
+            solution_1 = np.array([-70, -60, -50], dtype=np.float32)
             solution_1 = solution_1.reshape(solution_1.size, 1)
-            solution_2 = np.array([19, 29, 39], dtype=np.float32)
+            solution_2 = np.array([5, 15, 25], dtype=np.float32)
             solution_2 = solution_2.reshape(solution_2.size, 1)
             solution = np.hstack((solution_1, solution_2))
 
@@ -384,9 +410,9 @@ if __name__ == '__main__':
             # exp residual + percent_change
             test_dataset_g = np.hstack((test_data_column_1, test_data_column_2))
 
-            solution_1 = np.array([0, 1.25, 0.555556], dtype=np.float32)
+            solution_1 = np.array([0, -0.142857, -0.166667], dtype=np.float32)
             solution_1 = solution_1.reshape(solution_1.size, 1)
-            solution_2 = np.array([0, 0.526316, 0.344828], dtype=np.float32)
+            solution_2 = np.array([0, 2, 0.666667], dtype=np.float32)
             solution_2 = solution_2.reshape(solution_2.size, 1)
             solution = np.hstack((solution_1, solution_2))
 
@@ -394,7 +420,7 @@ if __name__ == '__main__':
 
             self.assertEqual(test_result.shape, (3, 2))
             self.assertEqual(test_result.dtype, np.float32)
-            np.testing.assert_array_almost_equal_nulp(test_result, solution, nulp=14)
+            np.testing.assert_array_almost_equal_nulp(test_result, solution, nulp=22)
 
             # exp residual + normal_dist
             test_dataset_h = np.hstack((test_data_column_1, test_data_column_2))
