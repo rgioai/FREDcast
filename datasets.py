@@ -116,8 +116,9 @@ def gather_indicators(start, end, append=False):
         quandl_values.dtype.names = ('Date', 'Value')
         quandl_values['Value'] = quandl_values['Value'].astype(np.float32)
         quandl_values['Date'] = quandl_values['Date'].astype('datetime64[D]')
-        dset_raw[:len(quandl_values['Value']), i] = quandl_values['Value']
         time_scaled = time_scale(quandl_values['Value'], quandl_values['Date'])
+        assert (forward_filled.shape == (601,))
+        dset_raw[:, i] = time_scaled
         forward_filled = forward_fill(time_scaled)
         assert (forward_filled.shape == (601,))
         dset_clean[:, i] = forward_filled

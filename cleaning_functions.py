@@ -1,7 +1,8 @@
 import datetime as dt
 
 import numpy as np
-
+import warnings
+import csv
 
 def forward_fill(data_column):
     prev = np.arange(len(data_column))
@@ -17,7 +18,7 @@ def time_scale(data_column, date_column, freq=None):
 
     if freq == 'monthly':
         scaled_data = np.empty(shape=(601,), dtype=np.float32)
-        scaled_data[:] = 0
+        scaled_data[:] = np.nan
 
         start_date = np.datetime64('1967-04')
         date_list = []
@@ -36,7 +37,7 @@ def time_scale(data_column, date_column, freq=None):
 
     elif freq == 'daily':
         scaled_data = np.empty(shape=(18264,), dtype=np.float32)
-        scaled_data[:] = 0
+        scaled_data[:] = np.nan
 
         start_date = np.datetime64('1967-04-01')
         date_list = []
@@ -60,7 +61,9 @@ def time_scale(data_column, date_column, freq=None):
             start = stop
             stop += month.shape[0]
 
-            scaled_data[i] = np.average(scaled_data[start:stop])
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                scaled_data[i] = np.nanmean(scaled_data[start:stop])
 
         return truncate_column(scaled_data)
 
@@ -93,7 +96,7 @@ def truncate_column(data_column, max_length=601):
     return data_column[:max_length]
 
 
-def truncate_loss(dataset, truncation_point):
+def truncate_loss(dataset, isTest=False):
     """
     Returns percentage of columns with np.nan values; this indicates what percentage of features do not extend to the
     index specified.  (All other np.nan values should be forward filled)
@@ -110,7 +113,20 @@ def truncate_loss(dataset, truncation_point):
     return num_match/num_total
     """
     # Adapted to one-line
-    return len(np.where(dataset[truncation_point] == np.nan)[0]) / len(dataset[truncation_point])
+    date_list = []
+    percent_list = []
+    for i in range(0, 601, 1):
+        date_list.append((np.datetime64('1967-04') + np.timedelta64(i, 'M')).astype(dt.datetime))
+        percent_list.append(np.count_nonzero(np.isnan(dataset[i, :])) / dataset.shape[1])
+
+    filename = 'truncate_loss.csv'
+    if isTest:
+        filename = 'truncate_loss_UT.csv'
+
+    with open(filename, 'w+') as csvfile:
+        for date, percent in zip(date_list, percent_list):
+            csvfile.write(str(date) + ", " + str(percent * 100) + "%")
+            csvfile.write('\n')
 
 
 def truncate_dataset(dataset, truncation_point):
@@ -139,7 +155,7 @@ if __name__ == '__main__':
 
             self.assertEqual(test_result_1.shape, (5,))
             self.assertEqual(test_result_1.dtype, np.float32)
-            np.testing.assert_array_equal(test_result_1, solution_1)
+            np.testing.assert_array_almost_equal(test_result_1, solution_1)
 
             test_data_column_2 = np.array([1, 0, 0, 4.5, 0], dtype=np.float32)
             solution_2 = np.array([1, 1, 1, 4.5, 4.5], dtype=np.float32)
@@ -147,7 +163,7 @@ if __name__ == '__main__':
 
             self.assertEqual(test_result_2.shape, (5,))
             self.assertEqual(test_result_2.dtype, np.float32)
-            np.testing.assert_array_equal(test_result_2, solution_2)
+            np.testing.assert_array_almost_equal(test_result_2, solution_2)
 
         def test_time_scale(self):
             # monthly
@@ -155,49 +171,49 @@ if __name__ == '__main__':
             test_date_column = np.array(
                 [dt.date(1967, 4, 1), dt.date(1967, 5, 1), dt.date(1967, 6, 2), dt.date(2017, 4, 1)])
             solution = np.empty(shape=(601,), dtype=np.float32)
-            solution[:] = 0
+            solution[:] = np.nan
             solution[0] = 5
             solution[1] = 10
-            solution[2] = 0
+            solution[2] = np.nan
             solution[-1] = 5
             test_result = time_scale(test_data_column, test_date_column)
 
             self.assertEqual(test_result.shape, (601,))
             self.assertEqual(test_result.dtype, np.float32)
-            np.testing.assert_array_equal(test_result, solution)
+            np.testing.assert_array_almost_equal(test_result, solution)
 
             # daily
             test_data_column = np.array([10, 20, 50, 5], dtype=np.float32)
             test_date_column = np.array(
                 [dt.date(1967, 4, 1), dt.date(1967, 4, 2), dt.date(1967, 6, 1), dt.date(2017, 4, 1)])
             solution = np.empty(shape=(601,), dtype=np.float32)
-            solution[:] = 0
-            solution[0] = 1
-            solution[2] = float(5 / 3)
-            solution[-1] = float(5)
+            solution[:] = np.nan
+            solution[0] = 15
+            solution[2] = 50
+            solution[-1] = 5
             test_result = time_scale(test_data_column, test_date_column)
 
             self.assertEqual(test_result.shape, (601,))
             self.assertEqual(test_result.dtype, np.float32)
-            np.testing.assert_array_equal(test_result, solution)
+            np.testing.assert_array_almost_equal(test_result, solution)
 
             # weekly
             test_data_column = np.array([10, 20, 30], dtype=np.float32)
             test_date_column = np.array([dt.date(1967, 4, 1), dt.date(1967, 4, 8), dt.date(1967, 4, 15)])
             solution = np.empty(shape=(601,), dtype=np.float32)
-            solution[:] = 0
-            solution[0] = float((10 + 20 + 30) / 30)
+            solution[:] = np.nan
+            solution[0] = float((10 + 20 + 30) / 3)
             test_result = time_scale(test_data_column, test_date_column)
 
             self.assertEqual(test_result.shape, (601,))
             self.assertEqual(test_result.dtype, np.float32)
-            np.testing.assert_array_equal(test_result, solution)
+            np.testing.assert_array_almost_equal(test_result, solution)
 
             # quarterly
             test_data_column = np.array([30, 20, 10], dtype=np.float32)
             test_date_column = np.array([dt.date(1967, 4, 1), dt.date(1967, 7, 1), dt.date(1967, 10, 1)])
             solution = np.empty(shape=(601,), dtype=np.float32)
-            solution[:] = 0
+            solution[:] = np.nan
             solution[0] = 30
             solution[3] = 20
             solution[6] = 10
@@ -205,13 +221,13 @@ if __name__ == '__main__':
 
             self.assertEqual(test_result.shape, (601,))
             self.assertEqual(test_result.dtype, np.float32)
-            np.testing.assert_array_equal(test_result, solution)
+            np.testing.assert_array_almost_equal(test_result, solution)
 
             # annually
             test_data_column = np.array([30, 20, 10], dtype=np.float32)
             test_date_column = np.array([dt.date(1968, 1, 1), dt.date(1969, 1, 1), dt.date(1970, 1, 1)])
             solution = np.empty(shape=(601,), dtype=np.float32)
-            solution[:] = 0
+            solution[:] = np.nan
             solution[9] = 30
             solution[21] = 20
             solution[33] = 10
@@ -219,7 +235,7 @@ if __name__ == '__main__':
 
             self.assertEqual(test_result.shape, (601,))
             self.assertEqual(test_result.dtype, np.float32)
-            np.testing.assert_array_equal(test_result, solution)
+            np.testing.assert_array_almost_equal(test_result, solution)
 
         def test_truncate_column(self):
             test_data_column = np.empty(shape=(700,), dtype=np.float32)
@@ -230,14 +246,24 @@ if __name__ == '__main__':
             self.assertEqual(test_result.dtype, np.float32)
 
         def test_truncate_loss(self):
-            # ISSUE: Not certain if I tested this one correctly.
-            test_data_column = np.empty(shape=(300, 2), dtype=np.float32)
-            test_data_column[:150] = np.nan
-            solution = np.empty(shape=(300, 2), dtype=np.float32)
-            solution[:150] = np.nan
-            test_result = truncate_loss(test_data_column, 150)
+            test_data_column = np.empty(shape=(601, 5), dtype=np.float32)
+            test_data_column[:] = 0
+            test_data_column[0, :] = np.nan
+            test_data_column[1, :] = np.nan
+            test_data_column[2, 2:3] = np.nan
 
-            self.assertEqual(test_result, float(0))
+            truncate_loss(test_data_column, isTest=True)
+
+            with open('truncate_loss_UT.csv', 'r') as f:
+                reader = csv.reader(f)
+                percent_on_date = {}
+                for row in reader:
+                    date, percent = row[0].strip(), row[1].strip()
+                    percent_on_date[date] = percent
+
+            self.assertEqual(percent_on_date['1967-04-01'], '100.0%')
+            self.assertEqual(percent_on_date['1967-05-01'], '100.0%')
+            self.assertEqual(percent_on_date['1967-06-01'], '20.0%')
 
         def test_truncate_dataset(self):
             test_data_column = np.empty(shape=(700, 2), dtype=np.float32)
