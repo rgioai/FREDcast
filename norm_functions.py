@@ -170,7 +170,10 @@ def normalize_dataset(dataset, norm_fn, second_norm=None):
     if norm_fn is not None:
         for i in range(0, copy.shape[1]):
             if not np.isnan(copy[:, i]).all():
-                copy[:, i] = norm_fn(copy[:, i], second_norm)
+                if second_norm is None:
+                    copy[:, i] = norm_fn(copy[:, i])
+                else:
+                    copy[:, i] = norm_fn(copy[:, i], second_norm)
             else:
                 print(str(i + 1) + ' is all NaN')
         return copy
