@@ -13,58 +13,62 @@ def split_data():
 
 
 class Interface(object):
-    def __init__(self):
+    def __init__(self, norm_fn, residual_fn, sample=False):
         # TODO If split_data.hdf5 does not exist, prompt the user
         # if yes, create it; otherwise quit
+        self.norm_fn = norm_fn
+        self.residual_fn = residual_fn
+        self.sample = sample
         raise NotImplementedError
 
-    def train_x(self, sample=False):
+    def train_x(self):
         raise NotImplementedError
 
-    def train_y(self, sample=False):
+    def train_y(self):
         raise NotImplementedError
 
-    def test_x(self, sample=False):
+    def test_x(self):
         raise NotImplementedError
 
-    def test_y(self, sample=False):
+    def test_y(self):
         raise NotImplementedError
 
-    def get_data(self, sample=False):
-        return self.train_x(sample), self.train_y(sample), self.test_x(sample), self.test_y(sample)
+    def get_data(self):
+        return self.train_x(), self.train_y(), self.test_x(), self.test_y()
 
 
 class SKLearn_Interface(Interface):
-    def train_x(self, sample=False):
+    # TODO Verify that the init method of the parent class will run without an explicit call
+    def train_x(self):
         raise NotImplementedError
-        # TODO Return all train x in a numpy array
+        # TODO Return all train x in a numpy array from {sample}_{self.norm_fn}_{self.residual_fn}
 
-    def train_y(self, sample=False):
+    def train_y(self):
         raise NotImplementedError
-        # TODO Return all train y in a numpy array
+        # TODO Return all train y in a numpy array from {sample}_{self.norm_fn}_{self.residual_fn}
 
-    def test_x(self, sample=False):
+    def test_x(self):
         raise NotImplementedError
-        # TODO Return all test x in a numpy array
+        # TODO Return all test x in a numpy array from {sample}_{self.norm_fn}_{self.residual_fn}
 
-    def test_y(self, sample=False):
+    def test_y(self):
         raise NotImplementedError
-        # TODO Return all test y in a numpy array
+        # TODO Return all test y in a numpy array from {sample}_{self.norm_fn}_{self.residual_fn}
 
 
 class TFLearn_Interface(Interface):
-    def train_x(self, sample=False):
+    def train_x(self):
         raise NotImplementedError
-        # TODO Return an hdf5 dataset containing all train x
+        # TODO Return an hdf5 dataset containing all train x from {sample}_{self.norm_fn}_{self.residual_fn}
 
-    def train_y(self, sample=False):
+    def train_y(self):
         raise NotImplementedError
-        # TODO Return an hdf5 dataset containing all train y
+        # TODO Return an hdf5 dataset containing all train y from {sample}_{self.norm_fn}_{self.residual_fn}
 
-    def test_x(self, sample=False):
+    def test_x(self):
         raise NotImplementedError
-        # TODO Return an hdf5 dataset containing all test x
+        # TODO Return an hdf5 dataset containing all test x from {sample}_{self.norm_fn}_{self.residual_fn}
 
-    def test_y(self, sample=False):
+    def test_y(self):
         raise NotImplementedError
-        # TODO Return an hdf5 dataset containing all test y
+        # TODO Return an hdf5 dataset containing all test y from {sample}_{self.norm_fn}_{self.residual_fn}
