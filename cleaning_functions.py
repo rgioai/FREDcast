@@ -5,10 +5,14 @@ import warnings
 import csv
 
 def forward_fill(data_column):
-    prev = np.arange(len(data_column))
-    prev[data_column == 0] = 0
+    copy = np.empty_like(data_column)
+    copy[:] = data_column
+    copy[np.isnan(copy)] = 0
+
+    prev = np.arange(len(copy))
+    prev[copy == 0] = 0
     prev = np.maximum.accumulate(prev)
-    filled = data_column[prev]
+    filled = copy[prev]
     filled[filled == 0] = np.nan
     return filled
 
@@ -101,18 +105,8 @@ def truncate_loss(dataset, isTest=False):
     Returns percentage of columns with np.nan values; this indicates what percentage of features do not extend to the
     index specified.  (All other np.nan values should be forward filled)
     :param dataset: 2D np.array
-    :param truncation_point: int of truncation index to test
-    :return: float [0,1]
+    :param isTest: bool to prevent overwriting normal outfile
     """
-    """
-    Broken down example using code from
-    http://stackoverflow.com/questions/12995937/count-all-values-in-a-matrix-greater-than-a-value
-    consider_row = dataset[truncation_point]
-    num_match = len(np.where(consider_row == np.nan)[0])
-    num_total = len(consider_row)
-    return num_match/num_total
-    """
-    # Adapted to one-line
     date_list = []
     percent_list = []
     for i in range(0, 601, 1):
@@ -128,6 +122,53 @@ def truncate_loss(dataset, isTest=False):
             csvfile.write(str(date) + ", " + str(percent * 100) + "%")
             csvfile.write('\n')
 
+def forward_fill_loss(dataset_raw, dataset_clean, isTest=False):
+    """
+    Returns percentage of columns that had forward-filled values.
+    :param dataset_clean: 2D np.array
+    :param dataset_raw: 2D np.array without ffill
+    :param isTest: bool to prevent overwriting normal outfile
+    """
+    date_list = []
+    percent_list = []
+    # month
+    for i in range(0, 601, 1):
+        percent_nan = 0
+        date_list.append((np.datetime64('1967-04') + np.timedelta64(i, 'M')).astype(dt.datetime))
+        nan_indicies = np.argwhere(np.isnan(dataset_raw[i, :]))
+        for index in nan_indicies:
+            if dataset_clean[index] is not np.nan:
+                percent_nan += 1
+        percent_list.append(percent_nan / dataset_raw.shape[1])
+
+    filename1 = 'truncate_ffill_month.csv'
+    if isTest:
+        filename1 = 'truncate_ffill_month_UT.csv'
+
+    with open(filename1, 'w+') as csvfile:
+        for date, percent in zip(date_list, percent_list):
+            csvfile.write(str(date) + ", " + str(percent * 100) + "%")
+            csvfile.write('\n')
+
+    feature_list = range(1, dataset_raw.shape[1] + 1)
+    percent_list = []
+    # feature
+    for i in range(0, dataset_raw.shape[1], 1):
+        percent_nan = 0
+        nan_indicies = np.argwhere(np.isnan(dataset_raw[:, i]))
+        for index in nan_indicies:
+            if dataset_clean[index] is not np.nan:
+                percent_nan += 1
+        percent_list.append(percent_nan / 601)
+
+    filename1 = 'truncate_ffill_feature.csv'
+    if isTest:
+        filename1 = 'truncate_ffill_feature_UT.csv'
+
+    with open(filename1, 'w+') as csvfile:
+        for feature, percent in zip(feature_list, percent_list):
+            csvfile.write(str(feature) + ", " + str(percent * 100) + "%")
+            csvfile.write('\n')
 
 def truncate_dataset(dataset, truncation_point):
     """
@@ -149,7 +190,7 @@ if __name__ == '__main__':
             pass
 
         def test_forward_fill(self):
-            test_data_column_1 = np.array([0, 2, 3, 0, 0], dtype=np.float32)
+            test_data_column_1 = np.array([np.nan, 2, 3, np.nan, np.nan], dtype=np.float32)
             solution_1 = np.array([np.nan, 2, 3, 3, 3], dtype=np.float32)
             test_result_1 = forward_fill(test_data_column_1)
 
@@ -157,10 +198,9 @@ if __name__ == '__main__':
             self.assertEqual(test_result_1.dtype, np.float32)
             np.testing.assert_array_almost_equal(test_result_1, solution_1)
 
-            test_data_column_2 = np.array([1, 0, 0, 4.5, 0], dtype=np.float32)
+            test_data_column_2 = np.array([1, np.nan, np.nan, 4.5, np.nan], dtype=np.float32)
             solution_2 = np.array([1, 1, 1, 4.5, 4.5], dtype=np.float32)
             test_result_2 = forward_fill(test_data_column_2)
-
             self.assertEqual(test_result_2.shape, (5,))
             self.assertEqual(test_result_2.dtype, np.float32)
             np.testing.assert_array_almost_equal(test_result_2, solution_2)
@@ -247,7 +287,7 @@ if __name__ == '__main__':
 
         def test_truncate_loss(self):
             test_data_column = np.empty(shape=(601, 5), dtype=np.float32)
-            test_data_column[:] = 0
+            test_data_column[:] = 1
             test_data_column[0, :] = np.nan
             test_data_column[1, :] = np.nan
             test_data_column[2, 2:3] = np.nan
@@ -264,6 +304,44 @@ if __name__ == '__main__':
             self.assertEqual(percent_on_date['1967-04-01'], '100.0%')
             self.assertEqual(percent_on_date['1967-05-01'], '100.0%')
             self.assertEqual(percent_on_date['1967-06-01'], '20.0%')
+
+        def test_forward_fill_loss(self):
+            test_data_column_raw = np.empty(shape=(601, 5), dtype=np.float32)
+            test_data_column_raw[:] = 1
+            test_data_column_raw[:, 0] = np.nan
+            test_data_column_raw[0, 0] = 2
+            test_data_column_raw[:, 1] = np.nan
+            test_data_column_raw[0, 0] = 2
+
+            test_data_column_clean = np.empty_like(test_data_column_raw)
+
+            for i in range(0, 5, 1):
+                test_data_column_clean[:, i] = forward_fill(test_data_column_raw[:, i])
+
+            forward_fill_loss(test_data_column_raw, test_data_column_clean, isTest=True)
+
+            with open('truncate_ffill_month_UT.csv', 'r') as f:
+                reader = csv.reader(f)
+                percent_on_date = {}
+                for row in reader:
+                    date, percent = row[0].strip(), row[1].strip()
+                    percent_on_date[date] = percent
+
+            self.assertEqual(percent_on_date['1967-04-01'], '20.0%')
+            self.assertEqual(percent_on_date['1967-05-01'], '40.0%')
+            self.assertEqual(percent_on_date['1967-06-01'], '40.0%')
+
+
+            with open('truncate_ffill_feature_UT.csv', 'r') as f:
+                reader = csv.reader(f)
+                percent_on_feature = {}
+                for row in reader:
+                    feature, percent = row[0].strip(), row[1].strip()
+                    percent_on_feature[feature] = percent
+
+            self.assertEqual(percent_on_feature['1'], '99.83361064891847%')
+            self.assertEqual(percent_on_feature['2'], '100.0%')
+            self.assertEqual(percent_on_feature['3'], '0.0%')
 
         def test_truncate_dataset(self):
             test_data_column = np.empty(shape=(700, 2), dtype=np.float32)
