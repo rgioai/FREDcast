@@ -133,8 +133,8 @@ def gdp_residual(data_column, second_norm=None):
     n = percent_change(copy)
 
     # hdf5 file with gdp data
-    hdf5 = h5py.File('GDP.hdf5')
-    gdp = np.asarray(hdf5['data/gdp'])
+    hdf5 = h5py.File('FREDcast.hdf5')
+    gdp = np.asarray(hdf5['admin/gdp'])
     hdf5.close()
 
     try:

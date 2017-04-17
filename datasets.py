@@ -17,9 +17,9 @@ AUTH_TOKEN = s.get('auth_code')
 
 
 def gather_gdp():
-    hdf5 = h5py.File('GDP.hdf5')
+    hdf5 = h5py.File('FREDcast.hdf5')
 
-    dset = hdf5.create_dataset('data/gdp', shape=(601, 1),
+    gdp_dset = hdf5.create_dataset('admin/gdp', shape=(601, 1),
                                dtype=np.float32)
 
     gdp = qd.get("FRED/GDP.1", returns='numpy', collapse='daily',
@@ -31,8 +31,7 @@ def gather_gdp():
     gdp_values = time_scale(gdp['Value'], gdp['Date'])
     gdp_values = forward_fill(gdp_values)
 
-    hdf5 = h5py.File('GDP.hdf5')
-    dset[:, 0] = gdp_values
+    gdp_dset[:, 0] = gdp_values
     hdf5.close()
 
 
@@ -45,15 +44,14 @@ def gather_indicators(start, end, append=False):
     out = open('log.txt', 'w+')
     collection_timer = dt.datetime.now()
 
-    # ISSUE: Datasets are hard to edit once they're already set.
-    # The current workaround is:
     # Create a backup of the old FREDcast.hdf5 as FREDcast.hdf5.bak
     # Load the incomplete dataset from FREDcast.hdf5 to memory
     # Assign the now free link to the last dset, and begin editing as normal
 
     if append is True:
         hdf5_old = h5py.File('FREDcast.hdf5')
-        old_dset = np.asarray(hdf5_old['data/raw'])
+        old_dset_raw = np.asarray(hdf5_old['data/sample_raw'])
+        old_dset_clean = np.asarray(hdf5_old['data/sample_clean'])
         hdf5_old.close()
         os.rename(os.path.realpath('FREDcast.hdf5'), os.path.realpath('FREDcast.hdf5') + '.bak')
 
@@ -70,15 +68,30 @@ def gather_indicators(start, end, append=False):
                     data[header] = [value]
 
     quandl_codes = data['Codes']
+    stringtype = h5py.special_dtype(vlen=bytes)
+    indicators = np.asarray(data['Descriptions']).astype('S')
 
     hdf5 = h5py.File('FREDcast.hdf5')
     hdf5.require_group('data')
+    hdf5.require_group('admin')
 
     if append is True:
-        dset = hdf5.create_dataset('data/raw', data=old_dset)
+        dset_raw = hdf5.create_dataset('data/sample_raw', data=old_dset_raw)
+        dset_clean = hdf5.create_dataset('data/sample_clean', data=old_dset_clean)
     if append is False:
-        dset = hdf5.create_dataset('data/raw', shape=(601, len(quandl_codes)),
+        gather_gdp()
+        dset_raw = hdf5.create_dataset('data/sample_raw', shape=(601, len(quandl_codes)),
                                    dtype=np.float32)
+        dset_clean = hdf5.create_dataset('data/sample_clean', shape=(601, len(quandl_codes)),
+                                   dtype=np.float32)
+        sample_indicators = indicators[0:1000]
+        hdf5.create_dataset('admin/sample_values_index', data=sample_indicators)
+        hdf5.create_dataset('admin/values_index', data=indicators)
+        date_list = []
+        for i in range(0, 601, 1):
+            date_list.append((np.datetime64('1967-04') + np.timedelta64(i, 'M')).astype(dt.datetime))
+        dates = np.asarray(date_list).astype('S')
+        hdf5.create_dataset('admin/dates_index', data=dates)
 
     if start > len(quandl_codes):
         start = len(quandl_codes) - 1
@@ -87,7 +100,6 @@ def gather_indicators(start, end, append=False):
     for i in range(start, end):
         pos += 1
         print(quandl_codes[i], pos)
-
         quandl_code = quandl_codes[i]
         quandl_values = None
         while quandl_values is None:
@@ -95,21 +107,20 @@ def gather_indicators(start, end, append=False):
                 quandl_values = qd.get(quandl_code + ".1", returns='numpy', collapse='daily',
                                        exclude_column_names=False, start_date='1967-4-1', end_date='2017-4-1',
                                        auth_token=AUTH_TOKEN)
-                sleep(0.1)
-                TOTAL_SLEEP += 0.1
                 TOTAL_CALLS += 1
             except qd.QuandlError as e:
-                print(str(e) + '. IGNORING, retrying in 1 minute.')
-                sleep(60)
-                TOTAL_SLEEP += 60
+                print(str(e) + '. IGNORING, retrying in 5 minutes.')
+                sleep(300)
+                TOTAL_SLEEP += 300
                 pass
         quandl_values.dtype.names = ('Date', 'Value')
         quandl_values['Value'] = quandl_values['Value'].astype(np.float32)
         quandl_values['Date'] = quandl_values['Date'].astype('datetime64[D]')
+        dset_raw[:len(quandl_values['Value']), i] = quandl_values['Value']
         time_scaled = time_scale(quandl_values['Value'], quandl_values['Date'])
         forward_filled = forward_fill(time_scaled)
         assert (forward_filled.shape == (601,))
-        dset[:, i] = forward_filled
+        dset_clean[:, i] = forward_filled
 
     out.write('Data collection runtime:' + str(dt.datetime.now() - collection_timer) + '\n')
     out.write('Total calls:' + str(TOTAL_CALLS) + '\n')
@@ -117,153 +128,153 @@ def gather_indicators(start, end, append=False):
 
     if append is True:
         hdf5_old = h5py.File('FREDcast.hdf5.bak')
-        old_dset = np.asarray(hdf5_old['data/raw'])
 
-        n_dset1 = hdf5.create_dataset('data/norm_data/linear_residual',
-                                      data=np.asarray(hdf5_old['data/norm_data/linear_residual']))
+        n_dset1 = hdf5.create_dataset('data/norm_data/sample_linear_residual',
+                                      data=np.asarray(hdf5_old['data/norm_data/sample_linear_residual']))
         normalizer_timer = dt.datetime.now()
-        n_dset1[:, start:end] = normalize_dataset(dset[:, start:end], linear_residual)
+        n_dset1[:, start:end] = normalize_dataset(dset_clean[:, start:end], linear_residual)
         out.write('Linear Residual runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset2 = hdf5.create_dataset('data/norm_data/linear_residual_zero_one', data=np.asarray(
-            hdf5_old['data/norm_data/linear_residual_zero_one']))
+        n_dset2 = hdf5.create_dataset('data/norm_data/sample_linear_residual_zero_one', data=np.asarray(
+            hdf5_old['data/norm_data/sample_linear_residual_zero_one']))
         normalizer_timer = dt.datetime.now()
-        n_dset2[:, start:end] = normalize_dataset(dset[:, start:end], linear_residual, zero_one)
+        n_dset2[:, start:end] = normalize_dataset(dset_clean[:, start:end], linear_residual, zero_one)
         out.write('Linear Residual + Zero One runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset3 = hdf5.create_dataset('data/norm_data/linear_residual_percent_change', data=np.asarray(
-            hdf5_old['data/norm_data/linear_residual_percent_change']))
+        n_dset3 = hdf5.create_dataset('data/norm_data/sample_linear_residual_percent_change', data=np.asarray(
+            hdf5_old['data/norm_data/sample_linear_residual_percent_change']))
         normalizer_timer = dt.datetime.now()
-        n_dset3[:, start:end] = normalize_dataset(dset[:, start:end], linear_residual, percent_change)
+        n_dset3[:, start:end] = normalize_dataset(dset_clean[:, start:end], linear_residual, percent_change)
         out.write('Linear Residual + Percent Change runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset4 = hdf5.create_dataset('data/norm_data/linear_residual_normal_dist', data=np.asarray(
-            hdf5_old['data/norm_data/linear_residual_normal_dist']))
+        n_dset4 = hdf5.create_dataset('data/norm_data/sample_linear_residual_normal_dist', data=np.asarray(
+            hdf5_old['data/norm_data/sample_linear_residual_normal_dist']))
         normalizer_timer = dt.datetime.now()
-        n_dset4[:, start:end] = normalize_dataset(dset[:, start:end], linear_residual, normal_dist)
+        n_dset4[:, start:end] = normalize_dataset(dset_clean[:, start:end], linear_residual, normal_dist)
         out.write('Linear Residual + Normal Dist runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset5 = hdf5.create_dataset('data/norm_data/exp_residual', data=np.asarray(
-            hdf5_old['data/norm_data/exp_residual']))
+        n_dset5 = hdf5.create_dataset('data/norm_data/sample_exp_residual', data=np.asarray(
+            hdf5_old['data/norm_data/sample_exp_residual']))
         normalizer_timer = dt.datetime.now()
-        n_dset5[:, start:end] = normalize_dataset(dset[:, start:end], exp_residual)
+        n_dset5[:, start:end] = normalize_dataset(dset_clean[:, start:end], exp_residual)
         out.write('Exp Residual runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset6 = hdf5.create_dataset('data/norm_data/exp_residual_zero_one', data=np.asarray(
-            hdf5_old['data/norm_data/exp_residual_zero_one']))
+        n_dset6 = hdf5.create_dataset('data/norm_data/sample_exp_residual_zero_one', data=np.asarray(
+            hdf5_old['data/norm_data/sample_exp_residual_zero_one']))
         normalizer_timer = dt.datetime.now()
-        n_dset6[:, start:end] = normalize_dataset(dset[:, start:end], exp_residual, zero_one)
+        n_dset6[:, start:end] = normalize_dataset(dset_clean[:, start:end], exp_residual, zero_one)
         out.write('Exp Residual + Zero One runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset7 = hdf5.create_dataset('data/norm_data/exp_residual_percent_change', data=np.asarray(
-            hdf5_old['data/norm_data/exp_residual_percent_change']))
+        n_dset7 = hdf5.create_dataset('data/norm_data/sample_exp_residual_percent_change', data=np.asarray(
+            hdf5_old['data/norm_data/sample_exp_residual_percent_change']))
         normalizer_timer = dt.datetime.now()
-        n_dset7[:, start:end] = normalize_dataset(dset[:, start:end], exp_residual, percent_change)
+        n_dset7[:, start:end] = normalize_dataset(dset_clean[:, start:end], exp_residual, percent_change)
         out.write('Exp Residual + Percent Change runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset8 = hdf5.create_dataset('data/norm_data/exp_residual_normal_dist', data=np.asarray(
-            hdf5_old['data/norm_data/exp_residual_normal_dist']))
+        n_dset8 = hdf5.create_dataset('data/norm_data/sample_exp_residual_normal_dist', data=np.asarray(
+            hdf5_old['data/norm_data/sample_exp_residual_normal_dist']))
         normalizer_timer = dt.datetime.now()
-        n_dset8[:, start:end] = normalize_dataset(dset[:, start:end], exp_residual, normal_dist)
+        n_dset8[:, start:end] = normalize_dataset(dset_clean[:, start:end], exp_residual, normal_dist)
         out.write('Exp Residual + Normal Dist runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset9 = hdf5.create_dataset('data/norm_data/gdp_residual', data=np.asarray(
-            hdf5_old['data/norm_data/gdp_residual']))
+        n_dset9 = hdf5.create_dataset('data/norm_data/sample_gdp_residual', data=np.asarray(
+            hdf5_old['data/norm_data/sample_gdp_residual']))
         normalizer_timer = dt.datetime.now()
-        n_dset9[:, start:end] = normalize_dataset(dset[:, start:end], gdp_residual)
+        n_dset9[:, start:end] = normalize_dataset(dset_clean[:, start:end], gdp_residual)
         out.write('GDP Residual runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset10 = hdf5.create_dataset('data/norm_data/gdp_residual_zero_one', data=np.asarray(
-            hdf5_old['data/norm_data/gdp_residual_zero_one']))
+        n_dset10 = hdf5.create_dataset('data/norm_data/sample_gdp_residual_zero_one', data=np.asarray(
+            hdf5_old['data/norm_data/sample_gdp_residual_zero_one']))
         normalizer_timer = dt.datetime.now()
-        n_dset10[:, start:end] = normalize_dataset(dset[:, start:end], gdp_residual, zero_one)
+        n_dset10[:, start:end] = normalize_dataset(dset_clean[:, start:end], gdp_residual, zero_one)
         out.write('GDP Residual + Zero One runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset11 = hdf5.create_dataset('data/norm_data/gdp_residual_percent_change', data=np.asarray(
-            hdf5_old['data/norm_data/gdp_residual_percent_change']))
+        n_dset11 = hdf5.create_dataset('data/norm_data/sample_gdp_residual_percent_change', data=np.asarray(
+            hdf5_old['data/norm_data/sample_gdp_residual_percent_change']))
         normalizer_timer = dt.datetime.now()
-        n_dset11[:, start:end] = normalize_dataset(dset[:, start:end], gdp_residual, percent_change)
+        n_dset11[:, start:end] = normalize_dataset(dset_clean[:, start:end], gdp_residual, percent_change)
         out.write('GDP Residual + Percent Change runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset12 = hdf5.create_dataset('data/norm_data/gdp_residual_normal_dist', data=np.asarray(
-            hdf5_old['data/norm_data/gdp_residual_normal_dist']))
+        n_dset12 = hdf5.create_dataset('data/norm_data/sample_gdp_residual_normal_dist', data=np.asarray(
+            hdf5_old['data/norm_data/sample_gdp_residual_normal_dist']))
         normalizer_timer = dt.datetime.now()
-        n_dset12[:, start:end] = normalize_dataset(dset[:, start:end], gdp_residual, normal_dist)
+        n_dset12[:, start:end] = normalize_dataset(dset_clean[:, start:end], gdp_residual, normal_dist)
         out.write('GDP Residual + Normal Dist runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
         hdf5_old.close()
 
     if append is False:
-        n_dset1 = hdf5.create_dataset('data/norm_data/linear_residual', shape=(601, len(quandl_codes)),
+        n_dset1 = hdf5.create_dataset('data/norm_data/sample_linear_residual', shape=(601, len(quandl_codes)),
                                       dtype=np.float32)
         normalizer_timer = dt.datetime.now()
-        n_dset1[:, start:end] = normalize_dataset(dset[:, start:end], linear_residual)
+        n_dset1[:, start:end] = normalize_dataset(dset_clean[:, start:end], linear_residual)
         out.write('Linear Residual runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset2 = hdf5.create_dataset('data/norm_data/linear_residual_zero_one', shape=(601, len(quandl_codes)),
+        n_dset2 = hdf5.create_dataset('data/norm_data/sample_linear_residual_zero_one', shape=(601, len(quandl_codes)),
                                       dtype=np.float32)
         normalizer_timer = dt.datetime.now()
-        n_dset2[:, start:end] = normalize_dataset(dset[:, start:end], linear_residual, zero_one)
+        n_dset2[:, start:end] = normalize_dataset(dset_clean[:, start:end], linear_residual, zero_one)
         out.write('Linear Residual + Zero One runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset3 = hdf5.create_dataset('data/norm_data/linear_residual_percent_change', shape=(601, len(quandl_codes)),
+        n_dset3 = hdf5.create_dataset('data/norm_data/sample_linear_residual_percent_change',
+                                      shape=(601, len(quandl_codes)),
                                       dtype=np.float32)
         normalizer_timer = dt.datetime.now()
-        n_dset3[:, start:end] = normalize_dataset(dset[:, start:end], linear_residual, percent_change)
+        n_dset3[:, start:end] = normalize_dataset(dset_clean[:, start:end], linear_residual, percent_change)
         out.write('Linear Residual + Percent Change runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset4 = hdf5.create_dataset('data/norm_data/linear_residual_normal_dist', shape=(601, len(quandl_codes)),
+        n_dset4 = hdf5.create_dataset('data/norm_data/sample_linear_residual_normal_dist', shape=(601, len(quandl_codes)),
                                       dtype=np.float32)
         normalizer_timer = dt.datetime.now()
-        n_dset4[:, start:end] = normalize_dataset(dset[:, start:end], linear_residual, normal_dist)
+        n_dset4[:, start:end] = normalize_dataset(dset_clean[:, start:end], linear_residual, normal_dist)
         out.write('Linear Residual + Normal Dist runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset5 = hdf5.create_dataset('data/norm_data/exp_residual', shape=(601, len(quandl_codes)),
+        n_dset5 = hdf5.create_dataset('data/norm_data/sample_exp_residual', shape=(601, len(quandl_codes)),
                                       dtype=np.float32)
         normalizer_timer = dt.datetime.now()
-        n_dset5[:, start:end] = normalize_dataset(dset[:, start:end], exp_residual)
+        n_dset5[:, start:end] = normalize_dataset(dset_clean[:, start:end], exp_residual)
         out.write('Exp Residual runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset6 = hdf5.create_dataset('data/norm_data/exp_residual_zero_one', shape=(601, len(quandl_codes)),
+        n_dset6 = hdf5.create_dataset('data/norm_data/sample_exp_residual_zero_one', shape=(601, len(quandl_codes)),
                                       dtype=np.float32)
         normalizer_timer = dt.datetime.now()
-        n_dset6[:, start:end] = normalize_dataset(dset[:, start:end], exp_residual, zero_one)
+        n_dset6[:, start:end] = normalize_dataset(dset_clean[:, start:end], exp_residual, zero_one)
         out.write('Exp Residual + Zero One runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset7 = hdf5.create_dataset('data/norm_data/exp_residual_percent_change', shape=(601, len(quandl_codes)),
+        n_dset7 = hdf5.create_dataset('data/norm_data/sample_exp_residual_percent_change', shape=(601, len(quandl_codes)),
                                       dtype=np.float32)
         normalizer_timer = dt.datetime.now()
-        n_dset7[:, start:end] = normalize_dataset(dset[:, start:end], exp_residual, percent_change)
+        n_dset7[:, start:end] = normalize_dataset(dset_clean[:, start:end], exp_residual, percent_change)
         out.write('Exp Residual + Percent Change runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset8 = hdf5.create_dataset('data/norm_data/exp_residual_normal_dist', shape=(601, len(quandl_codes)),
+        n_dset8 = hdf5.create_dataset('data/norm_data/sample_exp_residual_normal_dist', shape=(601, len(quandl_codes)),
                                       dtype=np.float32)
         normalizer_timer = dt.datetime.now()
-        n_dset8[:, start:end] = normalize_dataset(dset[:, start:end], exp_residual, normal_dist)
+        n_dset8[:, start:end] = normalize_dataset(dset_clean[:, start:end], exp_residual, normal_dist)
         out.write('Exp Residual + Normal Dist runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset9 = hdf5.create_dataset('data/norm_data/gdp_residual', shape=(601, len(quandl_codes)),
+        n_dset9 = hdf5.create_dataset('data/norm_data/sample_gdp_residual', shape=(601, len(quandl_codes)),
                                       dtype=np.float32)
         normalizer_timer = dt.datetime.now()
-        n_dset9[:, start:end] = normalize_dataset(dset[:, start:end], gdp_residual)
+        n_dset9[:, start:end] = normalize_dataset(dset_clean[:, start:end], gdp_residual)
         out.write('GDP Residual runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset10 = hdf5.create_dataset('data/norm_data/gdp_residual_zero_one', shape=(601, len(quandl_codes)),
+        n_dset10 = hdf5.create_dataset('data/norm_data/sample_gdp_residual_zero_one', shape=(601, len(quandl_codes)),
                                        dtype=np.float32)
         normalizer_timer = dt.datetime.now()
-        n_dset10[:, start:end] = normalize_dataset(dset[:, start:end], gdp_residual, zero_one)
+        n_dset10[:, start:end] = normalize_dataset(dset_clean[:, start:end], gdp_residual, zero_one)
         out.write('GDP Residual + Zero One runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset11 = hdf5.create_dataset('data/norm_data/gdp_residual_percent_change', shape=(601, len(quandl_codes)),
+        n_dset11 = hdf5.create_dataset('data/norm_data/sample_gdp_residual_percent_change', shape=(601, len(quandl_codes)),
                                        dtype=np.float32)
         normalizer_timer = dt.datetime.now()
-        n_dset11[:, start:end] = normalize_dataset(dset[:, start:end], gdp_residual, percent_change)
+        n_dset11[:, start:end] = normalize_dataset(dset_clean[:, start:end], gdp_residual, percent_change)
         out.write('GDP Residual + Percent Change runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
-        n_dset12 = hdf5.create_dataset('data/norm_data/gdp_residual_normal_dist', shape=(601, len(quandl_codes)),
+        n_dset12 = hdf5.create_dataset('data/norm_data/sample_gdp_residual_normal_dist', shape=(601, len(quandl_codes)),
                                        dtype=np.float32)
         normalizer_timer = dt.datetime.now()
-        n_dset12[:, start:end] = normalize_dataset(dset[:, start:end], gdp_residual, normal_dist)
+        n_dset12[:, start:end] = normalize_dataset(dset_clean[:, start:end], gdp_residual, normal_dist)
         out.write('GDP Residual + Normal Dist runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
     hdf5.close()
@@ -274,6 +285,6 @@ def gather_indicators(start, end, append=False):
 
 if __name__ == '__main__':
     gather_indicators(0, 1000, False)
-    #for i in range(1000, 300000, 1000):
-        #gather_indicators(i, i+1000, True)
+    # for i in range(1000, 300000, 1000):
+        # gather_indicators(i, i+1000, True)
 
