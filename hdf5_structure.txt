@@ -27,3 +27,13 @@
         /train_y
         /test_x
         /test_y
+
+/rnn_data.hdf5
+    /admin
+        /dates_index (dset whose values correspond to the months represented by the rows in each actual data table)
+        /values_index (dset whose values correspond to the indicators represented by the columns in each actual data table)
+    /data
+        /train_x
+        /train_y
+        /test_x
+        /test_y
