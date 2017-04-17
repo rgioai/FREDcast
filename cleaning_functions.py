@@ -1,3 +1,5 @@
+import datetime as dt
+
 import numpy as np
 
 
@@ -5,25 +7,30 @@ def forward_fill(data_column):
     prev = np.arange(len(data_column))
     prev[data_column == 0] = 0
     prev = np.maximum.accumulate(prev)
-    return data_column[prev]
+    filled = data_column[prev]
+    filled[filled == 0] = np.nan
+    return filled
 
 
 def time_scale(data_column, date_column, freq=None):
-    # ISSUE: Weekly was redundant, as daily still provided accurate calculations even with weekly intervals.
+    # Removed redundancies, as they still provided accurate calculations even with different 'intervals'.
 
     if freq == 'monthly':
         scaled_data = np.empty(shape=(601,), dtype=np.float32)
         scaled_data[:] = 0
 
         start_date = np.datetime64('1967-04')
-        date_dict = {}
+        date_list = []
         for i in range(0, 601, 1):
-            date_dict[i] = (start_date + np.timedelta64(i, 'M')).astype('datetime64[D]')
+            date_list.append((start_date + np.timedelta64(i, 'M')).astype(dt.datetime))
 
-        for i in range(0, len(scaled_data), 1):
-            for j in range(0, len(data_column), 1):
-                if date_column[j] == date_dict[i]:
-                    scaled_data[i] = data_column[j]
+        date_list = np.asarray(date_list)
+
+        indices_dl = np.arange(date_list.shape[0])[np.in1d(date_list, date_column)]
+        indices_dc = np.arange(date_column.shape[0])[np.in1d(date_column, date_list)]
+
+        for i in range(0, len(indices_dl), 1):
+            scaled_data[indices_dl[i]] = data_column[indices_dc[i]]
 
         return truncate_column(scaled_data)
 
@@ -32,35 +39,42 @@ def time_scale(data_column, date_column, freq=None):
         scaled_data[:] = 0
 
         start_date = np.datetime64('1967-04-01')
-        date_dict = {}
+        date_list = []
         for i in range(0, 18264, 1):
-            date_dict[i] = (start_date + np.timedelta64(i, 'D')).astype('datetime64[D]')
+            date_list.append((start_date + np.timedelta64(i, 'D')).astype(dt.datetime))
 
-        for i in range(0, len(scaled_data), 1):
-            for j in range(0, len(data_column), 1):
-                if date_column[j] == date_dict[i]:
-                    scaled_data[i] = data_column[j]
+        date_list = np.asarray(date_list)
 
+        indices_dl = np.arange(date_list.shape[0])[np.in1d(date_list, date_column)]
+        indices_dc = np.arange(date_column.shape[0])[np.in1d(date_column, date_list)]
+
+        for i in range(0, len(indices_dl), 1):
+            scaled_data[indices_dl[i]] = data_column[indices_dc[i]]
+
+        start, stop = 0, 0
         for i in range(0, 601, 1):
             month = np.arange(
                 np.datetime64('1967-04') + np.timedelta64(i, 'M'), (np.datetime64('1967-05') + np.timedelta64(i, 'M')),
-                              dtype='datetime64[D]')
-            ix = np.in1d(list(date_dict.values()), month)
-            scaled_data[i] = np.average(scaled_data[ix])
+                dtype='datetime64[D]')
+
+            start = stop
+            stop += month.shape[0]
+
+            scaled_data[i] = np.average(scaled_data[start:stop])
 
         return truncate_column(scaled_data)
 
     elif freq is None:
         # Added some wriggle room for business days
         first_date, second_date = date_column[0], date_column[1]
-        daydiff = int((second_date - first_date) / np.timedelta64(1, 'D'))
+        daydiff = (second_date - first_date).days
         if 1 <= daydiff < 28:
             return time_scale(data_column, date_column, 'daily')
         elif 28 <= daydiff:
             return time_scale(data_column, date_column, 'monthly')
-        #if 60 <= daydiff < 340:
+        # if 60 <= daydiff < 340:
         #    return time_scale(data_column, date_column, 'quarterly')
-        #elif daydiff <= 340:
+        # elif daydiff <= 340:
         #    return time_scale(data_column, date_column, 'annual')
         else:
             raise ValueError('Negative date difference')
@@ -120,7 +134,7 @@ if __name__ == '__main__':
 
         def test_forward_fill(self):
             test_data_column_1 = np.array([0, 2, 3, 0, 0], dtype=np.float32)
-            solution_1 = np.array([0, 2, 3, 3, 3], dtype=np.float32)
+            solution_1 = np.array([np.nan, 2, 3, 3, 3], dtype=np.float32)
             test_result_1 = forward_fill(test_data_column_1)
 
             self.assertEqual(test_result_1.shape, (5,))
@@ -138,13 +152,14 @@ if __name__ == '__main__':
         def test_time_scale(self):
             # monthly
             test_data_column = np.array([5, 10, 15, 5], dtype=np.float32)
-            test_date_column = np.array(['1967-04-01', '1967-05-01', '1967-06-02', '2017-04-01'], dtype='datetime64[D]')
+            test_date_column = np.array(
+                [dt.date(1967, 4, 1), dt.date(1967, 5, 1), dt.date(1967, 6, 2), dt.date(2017, 4, 1)])
             solution = np.empty(shape=(601,), dtype=np.float32)
             solution[:] = 0
             solution[0] = 5
             solution[1] = 10
             solution[2] = 0
-            solution[-1] = float(5)
+            solution[-1] = 5
             test_result = time_scale(test_data_column, test_date_column)
 
             self.assertEqual(test_result.shape, (601,))
@@ -153,11 +168,12 @@ if __name__ == '__main__':
 
             # daily
             test_data_column = np.array([10, 20, 50, 5], dtype=np.float32)
-            test_date_column = np.array(['1967-04-01', '1967-04-02', '1967-06-01', '2017-04-01'], dtype='datetime64[D]')
+            test_date_column = np.array(
+                [dt.date(1967, 4, 1), dt.date(1967, 4, 2), dt.date(1967, 6, 1), dt.date(2017, 4, 1)])
             solution = np.empty(shape=(601,), dtype=np.float32)
             solution[:] = 0
             solution[0] = 1
-            solution[2] = float(5/3)
+            solution[2] = float(5 / 3)
             solution[-1] = float(5)
             test_result = time_scale(test_data_column, test_date_column)
 
@@ -167,7 +183,7 @@ if __name__ == '__main__':
 
             # weekly
             test_data_column = np.array([10, 20, 30], dtype=np.float32)
-            test_date_column = np.array(['1967-04-01', '1967-04-08', '1967-04-15'], dtype='datetime64[D]')
+            test_date_column = np.array([dt.date(1967, 4, 1), dt.date(1967, 4, 8), dt.date(1967, 4, 15)])
             solution = np.empty(shape=(601,), dtype=np.float32)
             solution[:] = 0
             solution[0] = float((10 + 20 + 30) / 30)
@@ -179,7 +195,7 @@ if __name__ == '__main__':
 
             # quarterly
             test_data_column = np.array([30, 20, 10], dtype=np.float32)
-            test_date_column = np.array(['1967-04-01', '1967-07-01', '1967-10-01'], dtype='datetime64[D]')
+            test_date_column = np.array([dt.date(1967, 4, 1), dt.date(1967, 7, 1), dt.date(1967, 10, 1)])
             solution = np.empty(shape=(601,), dtype=np.float32)
             solution[:] = 0
             solution[0] = 30
@@ -193,7 +209,7 @@ if __name__ == '__main__':
 
             # annually
             test_data_column = np.array([30, 20, 10], dtype=np.float32)
-            test_date_column = np.array(['1968-01-01', '1969-01-01', '1970-01-01'], dtype='datetime64[D]')
+            test_date_column = np.array([dt.date(1968, 1, 1), dt.date(1969, 1, 1), dt.date(1970, 1, 1)])
             solution = np.empty(shape=(601,), dtype=np.float32)
             solution[:] = 0
             solution[9] = 30
