@@ -52,6 +52,7 @@ def gather_indicators(start, end, append=False):
         hdf5_old = h5py.File('FREDcast.hdf5')
         old_dset_raw = np.asarray(hdf5_old['data/sample_raw'])
         old_dset_clean = np.asarray(hdf5_old['data/sample_clean'])
+        old_gdp = np.asarray(hdf5_old['admin/gdp'])
         hdf5_old.close()
         os.rename(os.path.realpath('FREDcast.hdf5'), os.path.realpath('FREDcast.hdf5') + '.bak')
 
@@ -68,7 +69,6 @@ def gather_indicators(start, end, append=False):
                     data[header] = [value]
 
     quandl_codes = data['Codes']
-    stringtype = h5py.special_dtype(vlen=bytes)
     indicators = np.asarray(data['Descriptions']).astype('S')
 
     hdf5 = h5py.File('FREDcast.hdf5')
@@ -76,8 +76,12 @@ def gather_indicators(start, end, append=False):
     hdf5.require_group('admin')
 
     if append is True:
+        hdf5.create_dataset('admin/gdp', data=old_gdp)
         dset_raw = hdf5.create_dataset('data/sample_raw', data=old_dset_raw)
         dset_clean = hdf5.create_dataset('data/sample_clean', data=old_dset_clean)
+        # Freeing space in memory
+        del old_dset_raw
+        del old_dset_clean
     if append is False:
         gather_gdp()
         dset_raw = hdf5.create_dataset('data/sample_raw', shape=(601, len(quandl_codes)),
@@ -291,7 +295,6 @@ def gather_indicators(start, end, append=False):
 
 
 if __name__ == '__main__':
-    gather_indicators(0, 5, False)
-    gather_indicators(5, 10, True)
+    gather_indicators(0, 1000, False)
     # for i in range(1000, 300000, 1000):
     # gather_indicators(i, i+1000, True)
