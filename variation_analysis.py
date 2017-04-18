@@ -1,11 +1,14 @@
 import numpy as np
 
-feature_vector = []
+def get_feature_vector(norm_fn, residual_fn=None):
+    # TODO Get the feature vector of the most recent data (top row of the data table)
+    pass
 
-
-def generate_all_results(classifier):
-    clf = classifier
-    # TODO Assert that clf has a method .predict()
+def generate_all_results(trained_classifier, norm_fn, residual_fn):
+    clf = trained_classifier
+    feature_vector = get_feature_vector(norm_fn, residual_fn)
+    original_prediction = clf.predict(feature_vector)
+    
     all_results = np.empty((len(feature_vector), 2), dtype=np.float32)
     for feature_index in range(len(feature_vector)):
         feature_results = np.empty((30,), dtype=np.float32)
