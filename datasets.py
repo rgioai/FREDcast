@@ -53,6 +53,8 @@ def gather_indicators(start, end, append=False):
         old_dset_raw = np.asarray(hdf5_old['data/raw'])
         old_dset_clean = np.asarray(hdf5_old['data/clean'])
         old_gdp = np.asarray(hdf5_old['admin/gdp'])
+        old_index = np.asarray(hdf5_old['admin/values_index'])
+        old_dates = np.asarray(hdf5_old['admin/dates_index'])
         hdf5_old.close()
         os.rename(os.path.realpath('FREDcast.hdf5'), os.path.realpath('FREDcast.hdf5') + '.bak')
 
@@ -76,25 +78,29 @@ def gather_indicators(start, end, append=False):
     hdf5.require_group('admin')
 
     if append is True:
-        hdf5.create_dataset('admin/gdp', data=old_gdp)
         dset_raw = hdf5.create_dataset('data/raw', data=old_dset_raw)
         dset_clean = hdf5.create_dataset('data/clean', data=old_dset_clean)
+        hdf5.create_dataset('admin/gdp', data=old_gdp)
+        hdf5.create_dataset('admin/values_index', data=old_index)
+        hdf5.create_dataset('admin/dates_index', data=old_dates)
         # Freeing space in memory
         del old_dset_raw
         del old_dset_clean
+        del old_gdp
+        del old_index
+        del old_dates
     if append is False:
         dset_raw = hdf5.create_dataset('data/raw', shape=(601, len(quandl_codes)),
                                        dtype=np.float32)
         dset_clean = hdf5.create_dataset('data/clean', shape=(601, len(quandl_codes)),
                                          dtype=np.float32)
-        indicators = indicators[0:1000]
-        hdf5.create_dataset('admin/values_index', data=indicators)
-        hdf5.create_dataset('admin/values_index', data=indicators)
-        date_list = []
-        for i in range(0, 601, 1):
-            date_list.append((np.datetime64('1967-04') + np.timedelta64(i, 'M')).astype(dt.datetime))
-        dates = np.asarray(date_list).astype('S')
-        hdf5.create_dataset('admin/dates_index', data=dates)
+        # indicators = indicators[0:1000]
+        # hdf5.create_dataset('admin/values_index', data=indicators)
+        # date_list = []
+        # for i in range(0, 601, 1):
+            # date_list.append((np.datetime64('1967-04') + np.timedelta64(i, 'M')).astype(dt.datetime))
+        # dates = np.asarray(date_list).astype('S')
+        # hdf5.create_dataset('admin/dates_index', data=dates)
 
     if start > len(quandl_codes):
         start = len(quandl_codes) - 1
