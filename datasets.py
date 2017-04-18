@@ -71,7 +71,7 @@ def gather_indicators(start, end, append=False):
                     data[header] = [value]
 
     quandl_codes = data['Codes']
-    indicators = np.asarray(data['Descriptions']).astype('S')
+    # indicators = np.asarray(data['Descriptions']).astype('S')
 
     hdf5 = h5py.File('FREDcast.hdf5')
     hdf5.require_group('data')
