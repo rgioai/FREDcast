@@ -19,7 +19,7 @@ def generate_all_results(trained_classifier, norm_fn, residual_fn):
                 factor = (scale * 0.01) + 0.85
             test_vector = feature_vector
             test_vector[feature_index] = feature_vector[feature_index] * scale
-            feature_results[scale] = clf.predict(test_vector)
+            feature_results[scale] = clf.predict(test_vector) - original_prediction
         all_results[feature_index][0] = np.mean(feature_results)  # TODO Verify numpy API
         all_results[feature_index][1] = np.std(feature_results)  # TODO Verify numpy API
     return all_results
