@@ -169,13 +169,11 @@ def normalize_dataset(dataset, norm_fn, second_norm=None):
 
     if norm_fn is not None:
         for i in range(0, copy.shape[1]):
-            if not np.isnan(copy[:, i]).all():
+            if not np.count_nonzero(np.isnan(copy[:, i])) == copy[:, i].size:
                 if second_norm is None:
                     copy[:, i] = norm_fn(copy[:, i])
                 else:
                     copy[:, i] = norm_fn(copy[:, i], second_norm)
-            else:
-                print(str(i + 1) + ' is all NaN')
         return copy
     else:
         raise ValueError('Missing dataset value!')

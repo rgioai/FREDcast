@@ -40,15 +40,13 @@ class Interface(object):
             print('split_data.hdf5 does not exist. Type "Y" to create it, type anything else to quit.')
             answer = input(prompt)
             if answer is 'Y' or answer is 'y':
-                hdf5 = h5py.File('split_data.hdf5')
-                hdf5.require_group('admin')
+                split_data()
             else:
                 quit()
 
         self.norm_fn = norm_fn
         self.residual_fn = residual_fn
         self.sample = sample
-        raise NotImplementedError
 
     def train_x(self):
         raise NotImplementedError
@@ -101,3 +99,7 @@ class TFLearn_Interface(Interface):
     def test_y(self):
         hdf5 = h5py.File('split_data.hdf5')
         return hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_y']
+
+# Test code
+# sk = SKLearn_Interface('zero_one', 'linear_residual')
+# sk.train_x()
