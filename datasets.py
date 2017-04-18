@@ -1,4 +1,3 @@
-import csv
 import os
 from time import sleep
 
@@ -71,7 +70,7 @@ def gather_indicators(start, end, append=False):
                     data[header] = [value]
 
     quandl_codes = data['Codes']
-    # indicators = np.asarray(data['Descriptions']).astype('S')
+    indicators = np.asarray(data['Descriptions']).astype('S')
 
     hdf5 = h5py.File('FREDcast.hdf5')
     hdf5.require_group('data')
@@ -94,13 +93,13 @@ def gather_indicators(start, end, append=False):
                                        dtype=np.float32)
         dset_clean = hdf5.create_dataset('data/clean', shape=(601, len(quandl_codes)),
                                          dtype=np.float32)
-        # indicators = indicators[0:1000]
-        # hdf5.create_dataset('admin/values_index', data=indicators)
-        # date_list = []
-        # for i in range(0, 601, 1):
-            # date_list.append((np.datetime64('1967-04') + np.timedelta64(i, 'M')).astype(dt.datetime))
-        # dates = np.asarray(date_list).astype('S')
-        # hdf5.create_dataset('admin/dates_index', data=dates)
+        indicators = indicators[0:1000]
+        hdf5.create_dataset('admin/values_index', data=indicators)
+        date_list = []
+        for i in range(0, 601, 1):
+            date_list.append((np.datetime64('1967-04') + np.timedelta64(i, 'M')).astype(dt.datetime))
+        dates = np.asarray(date_list).astype('S')
+        hdf5.create_dataset('admin/dates_index', data=dates)
 
     if start > len(quandl_codes):
         start = len(quandl_codes) - 1
@@ -302,4 +301,4 @@ def gather_indicators(start, end, append=False):
 if __name__ == '__main__':
     gather_indicators(0, 1000, False)
     for i in range(1000, 300000, 1000):
-        gather_indicators(i, i+1000, True)
+        gather_indicators(i, i + 1000, True)
