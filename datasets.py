@@ -125,12 +125,16 @@ def gather_indicators(start, end, append=False):
         quandl_values.dtype.names = ('Date', 'Value')
         quandl_values['Value'] = quandl_values['Value'].astype(np.float32)
         quandl_values['Date'] = quandl_values['Date'].astype('datetime64[D]')
-        time_scaled = time_scale(quandl_values['Value'], quandl_values['Date'])
-        assert (time_scaled.shape == (601,))
-        dset_raw[:, i] = time_scaled
-        forward_filled = forward_fill(time_scaled)
-        assert (forward_filled.shape == (601,))
-        dset_clean[:, i] = forward_filled
+        if quandl_values['Value'].size is not 0 and quandl_values['Date'].size is not 0:
+            time_scaled = time_scale(quandl_values['Value'], quandl_values['Date'])
+            assert (time_scaled.shape == (601,))
+            dset_raw[:, i] = time_scaled
+            forward_filled = forward_fill(time_scaled)
+            assert (forward_filled.shape == (601,))
+            dset_clean[:, i] = forward_filled
+        else:
+            dset_raw[:, i] = np.nan
+            dset_clean[:, i] = np.nan
 
     out.write('Data collection runtime:' + str(dt.datetime.now() - collection_timer) + '\n')
     out.write('Total calls:' + str(TOTAL_CALLS) + '\n')
@@ -189,6 +193,6 @@ def gather_indicators(start, end, append=False):
 
 
 if __name__ == '__main__':
-    gather_indicators(0, 1000, False)
-    for i in range(1000, 300000, 1000):
+    # gather_indicators(0, 1000, False)
+    for i in range(12000, 300000, 1000):
         gather_indicators(i, i + 1000, True)
