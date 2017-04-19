@@ -3,18 +3,39 @@ import numpy as np
 
 
 def aggregate_rnn_data():
-    # TODO open FREDcast.hdf5 and a new file, rnn_data.hdf5
-    # Copy the admin group over, without sample_values_index
-    # Then expand values_index for the aggregation to follow...
+    hdf5 = h5py.File('rnn_data.hdf5')
+    hdf5_fred = h5py.File('FREDcast.hdf5')
 
-    # TODO Aggregate all 12 normalization combinations into one dataset
-    # (could just hstack, but that might not fit in memory)
-    # for example, if the initial datasets were (601, 100000)
-    # the aggregate should be (601, initial.shape[1] * 12) or (601, 1200000)
-    # hint: probably a good assertion to ensure correctness there
+    arr = np.asarray(hdf5_fred['admin/values_index'])
+    repeat_arr = np.array([arr] * 12).flatten()
+    hdf5.create_dataset('admin/values_index', data=repeat_arr)
+    hdf5.create_dataset('admin/dates_index', data=np.asarray(hdf5_fred['admin/dates_index']))
 
-    # TODO Split this into train/test just like in data_interfaces
+    dset_agg = np.empty(shape=(601, repeat_arr.size),
+                        dtype=np.float32)
+    assert (dset_agg.shape == (601, arr.size * 12))
 
-    # TODO Save it all to hdf5
+    filepaths = ['zero_one',
+                 'zero_one_linear_residual',
+                 'zero_one_exp_residual',
+                 'zero_one_gdp_residual',
+                 'percent_change',
+                 'percent_change_linear_residual',
+                 'percent_change_exp_residual',
+                 'percent_change_gdp_residual',
+                 'normal_dist',
+                 'normal_dist_linear_residual',
+                 'normal_dist_exp_residual',
+                 'normal_dist_gdp_residual']
 
-    raise NotImplementedError
+    loc = 0
+    for path in filepaths:
+        norm_dset = np.asarray(hdf5_fred[path])
+        assert (norm_dset.shape[0] == 601)
+        assert (norm_dset.dtype == np.float32)
+        dset_agg[:, loc:norm_dset.shape[1]] = norm_dset[:, :]
+        loc += norm_dset.shape[1]
+
+    hdf5.create_dataset(path + '/train_x', data=dset_agg[0:597, :])
+    hdf5.create_dataset(path + '/test_x', data=dset_agg[:-3, :])
+    hdf5.close()
