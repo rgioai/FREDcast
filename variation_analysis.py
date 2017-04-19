@@ -1,25 +1,34 @@
 import numpy as np
+import h5py
 
 def get_feature_vector(norm_fn, residual_fn=None):
-    # TODO Get the feature vector of the most recent data (top row of the data table)
-    pass
+    # Get the feature vector of the most recent data (top row of the data table)
+    # ISSUE: I think it should be the bottom row, as we're going in ascending order 1967-2017. Correct me if I'm wrong.
+    hdf5 = h5py.File('split_data.hdf5')
+    if residual_fn is None:
+        return np.asarray(hdf5[str(norm_fn) + '/test_x'])[-1, :]
+    else:
+        return np.asarray(hdf5[str(norm_fn) + '_' + str(residual_fn) + '/test_x'])[-1, :]
+
 
 def generate_all_results(trained_classifier, norm_fn, residual_fn):
     clf = trained_classifier
     feature_vector = get_feature_vector(norm_fn, residual_fn)
     original_prediction = clf.predict(feature_vector)
-    
+
     all_results = np.empty((len(feature_vector), 2), dtype=np.float32)
     for feature_index in range(len(feature_vector)):
         feature_results = np.empty((30,), dtype=np.float32)
-        for scale in range(30+1):
+        for scale in range(30 + 1):
             if scale >= 15:
                 factor = ((scale + 1) * 0.01) + 0.85
             else:
                 factor = (scale * 0.01) + 0.85
             test_vector = feature_vector
             test_vector[feature_index] = feature_vector[feature_index] * scale
-            feature_results[scale] = clf.predict(test_vector) - original_prediction  # TODO this will be a vector.  Get it's magnitude to make it a scalar.
+            feature_results[scale] = clf.predict(
+                test_vector) - original_prediction  # TODO this will be a vector.  Get it's magnitude to make it a scalar.
+
         all_results[feature_index][0] = np.mean(feature_results)  # TODO Verify numpy API
         all_results[feature_index][1] = np.std(feature_results)  # TODO Verify numpy API
     return all_results
