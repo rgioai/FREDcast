@@ -43,6 +43,8 @@ def split_data():
         assert (norm_dset.dtype == np.float32)
         hdf5.create_dataset(path + '/train_x', data=norm_dset[0:597, :])
         hdf5.create_dataset(path + '/test_x', data=norm_dset[:-3, :])
+    hdf5.close()
+    hdf5_fred.close()
 
 
 class Interface(object):
@@ -56,6 +58,7 @@ class Interface(object):
             else:
                 quit()
 
+        self.hdf5 = h5py.File('split_data.hdf5')
         self.norm_fn = norm_fn
         self.residual_fn = residual_fn
         self.sample = sample
@@ -77,64 +80,63 @@ class Interface(object):
 
 
 class SKLearn_Interface(Interface):
-    # TODO Verify that the init method of the parent class will run without an explicit call
     def train_x(self):
-        hdf5 = h5py.File('split_data.hdf5')
+
         if self.sample is True:
-            return np.asarray(hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_x'])
+            return np.asarray(self.hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_x'])
         else:
-            return np.asarray(hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_x'])
+            return np.asarray(self.hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_x'])
 
     def train_y(self):
-        hdf5 = h5py.File('split_data.hdf5')
+
         if self.sample is True:
-            return np.asarray(hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_y'])
+            return np.asarray(self.hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_y'])
         else:
-            return np.asarray(hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_y'])
+            return np.asarray(self.hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_y'])
 
     def test_x(self):
-        hdf5 = h5py.File('split_data.hdf5')
+
         if self.sample is True:
-            return np.asarray(hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_x'])
+            return np.asarray(self.hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_x'])
         else:
-            return np.asarray(hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_x'])
+            return np.asarray(self.hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_x'])
 
     def test_y(self):
-        hdf5 = h5py.File('split_data.hdf5')
+
         if self.sample is True:
-            return np.asarray(hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_y'])
+            return np.asarray(self.hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_y'])
         else:
-            return np.asarray(hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_y'])
+            return np.asarray(self.hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_y'])
 
 
 class TFLearn_Interface(Interface):
     def train_x(self):
-        hdf5 = h5py.File('split_data.hdf5')
+
         if self.sample is True:
-            return hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_x']
+            return self.hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_x']
         else:
-            return hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_x']
+            return self.hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_x']
 
     def train_y(self):
-        hdf5 = h5py.File('split_data.hdf5')
+
         if self.sample is True:
-            return hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_y']
+            return self.hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_y']
         else:
-            return hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_y']
+            return self.hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/train_y']
 
     def test_x(self):
-        hdf5 = h5py.File('split_data.hdf5')
+
         if self.sample is True:
-            return hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_x']
+            return self.hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_x']
         else:
-            return hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_x']
+            return self.hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_x']
 
     def test_y(self):
-        hdf5 = h5py.File('split_data.hdf5')
+
         if self.sample is True:
-            return hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_y']
+            return self.hdf5['sample_' + str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_y']
         else:
-            return hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_y']
+            return self.hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_y']
 
 # Test code
 # sk = SKLearn_Interface('zero_one', 'linear_residual')

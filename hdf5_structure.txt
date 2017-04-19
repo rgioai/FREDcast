@@ -1,39 +1,50 @@
 /FREDcast.hdf5
     /admin
         /dates_index (dset whose values correspond to the months represented by the rows in each actual data table)
-        /sample_values_index (dset whose values correspond to the indicators represented by the columns in each actual data table)
-        /values_index (dset whose values correspond to the indicators represented by the columns in each actual data table)
     /data
-        /sample_raw (dset of a few indicators for testing)
         /raw (dset of all indicators)
-        /sample_clean (dset of a few indicators, with forward filling and truncating)
         /clean (dset of all indicators, with forward filling and truncating)
         /norm_data
-            /sample_{norm_fn}_{residual_fn}
             /{norm_fn}_{residual_fn}
+
+/FREDcast_sample.hdf5
+    /admin
+        /dates_index (dset whose values correspond to the months represented by the rows in each actual data table)
+    /data
+        /raw
+        /clean
+        /norm_data
+            {norm_fn}_{residual_fn}
 
 /split_data.hdf5
     /admin
         /dates_index (dset whose values correspond to the months represented by the rows in each actual data table)
-        /sample_values_index (dset whose values correspond to the indicators represented by the columns in each actual data table)
-        /values_index (dset whose values correspond to the indicators represented by the columns in each actual data table)
-    /sample_{norm_fn}_{residual_fn}
-        /train_x
-        /train_y
-        /test_x
-        /test_y
     /{norm_fn}_{residual_fn}
         /train_x
         /train_y
         /test_x
         /test_y
 
+# TODO Any updates to other function
+/split_data_sample.hdf5
+    * exact mirror of split_data.hdf5, but with only sample data
+
 /rnn_data.hdf5
     /admin
         /dates_index (dset whose values correspond to the months represented by the rows in each actual data table)
-        /values_index (dset whose values correspond to the indicators represented by the columns in each actual data table)
     /data
         /train_x
         /train_y
         /test_x
         /test_y
+
+/rnn_data_sample.hdf5
+    * exact mirror of split_data.hdf5, but with only sample data
+    
+/admin.hdf5
+    /codes - fixed length ascii
+    /descriptions - vlen str; whatever dtype is most size efficient
+    
+/admin_sample.hdf5
+    /codes
+    /descriptions

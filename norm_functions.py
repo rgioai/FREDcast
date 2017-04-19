@@ -180,7 +180,6 @@ def normalize_dataset(dataset, norm_fn, second_norm=None):
 
 
 if __name__ == '__main__':
-    # TODO Unit testing for all functions
     import unittest
 
 

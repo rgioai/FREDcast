@@ -4,6 +4,7 @@ import numpy as np
 import warnings
 import csv
 
+
 def forward_fill(data_column):
     copy = np.empty_like(data_column)
     copy[:] = data_column
@@ -97,7 +98,7 @@ def truncate_column(data_column, max_length=601):
     :return: np.array
     """
     assert (len(data_column.shape) == 1)  # Assert data_column is a 1D numpy array
-    return data_column[:max_length]
+    return data_column[-1*max_length:]  # TODO Verify that any array slicing is correct
 
 
 def truncate_loss(dataset, isTest=False):
@@ -121,6 +122,7 @@ def truncate_loss(dataset, isTest=False):
         for date, percent in zip(date_list, percent_list):
             csvfile.write(str(date) + ", " + str(percent * 100) + "%")
             csvfile.write('\n')
+
 
 def forward_fill_loss(dataset_raw, dataset_clean, isTest=False):
     """
@@ -170,6 +172,7 @@ def forward_fill_loss(dataset_raw, dataset_clean, isTest=False):
             csvfile.write(str(feature) + ", " + str(percent * 100) + "%")
             csvfile.write('\n')
 
+
 def truncate_dataset(dataset, truncation_point):
     """
     Abstraction of numpy slicing operation for 2D array truncation.
@@ -178,7 +181,15 @@ def truncate_dataset(dataset, truncation_point):
     :return: np.array
     """
     assert (len(dataset.shape) == 2)  # Assert data_column is a 2D numpy array
-    return dataset[:truncation_point]
+    # TODO Also truncate dates_index
+    return dataset[-1*truncation_point:]
+
+
+def truncate_hdf5(hdf5_file, truncation_point):
+    # TODO Run truncate_column on dates_index
+    # TODO Run truncate_dataset on clean
+    # TODO Make sure other code calls this; not truncate_dataset or truncate_column
+    pass
 
 
 if __name__ == '__main__':
@@ -350,6 +361,10 @@ if __name__ == '__main__':
 
             self.assertEqual(test_result.shape, (601, 2))
             self.assertEqual(test_result.dtype, np.float32)
+
+            # TODO Add example case
+            # a = [0, 1, 2, 3, 4, 5]
+            # b = [3, 4, 5]
 
         def tearDown(self):
             pass
