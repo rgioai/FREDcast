@@ -249,13 +249,6 @@ def gather_indicators(start, end, append=False, sample=False):
 if __name__ == '__main__':
     # gather_y()
 
-    hdf5 = h5py.File('FREDcast.hdf5')
-    del hdf5['y']
-    del hdf5['y_values']
-    del hdf5['values_index']
-    del hdf5['gdp']
-    hdf5.close()
-
     create_admin_hdf5(sample=False)
     create_admin_hdf5(sample=True)
     gather_indicators(0, 1000, False, sample=True)
