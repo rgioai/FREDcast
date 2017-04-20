@@ -39,7 +39,7 @@ def gather_gdp():
 def gather_y():
     hdf5 = h5py.File('FREDcast.hdf5')
 
-    y_dset = hdf5.create_dataset('admin/y_values', shape=(601, 4),
+    y_dset = hdf5.create_dataset('admin/y', shape=(601, 4),
                                  dtype=np.float32)
 
     quandl_codes = ['FRED/UNEMPLOY', 'FRED/PAYEMS', 'FRED/GDP', 'FRED/CPIAUCSL']
