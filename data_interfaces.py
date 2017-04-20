@@ -8,8 +8,6 @@ def split_data():
     hdf5 = h5py.File('split_data.hdf5')
     hdf5_fred = h5py.File('FREDcast.hdf5')
 
-    hdf5.create_dataset('admin/sample_values_index', data=np.asarray(hdf5_fred['admin/sample_values_index']))
-    hdf5.create_dataset('admin/values_index', data=np.asarray(hdf5_fred['admin/values_index']))
     hdf5.create_dataset('admin/dates_index', data=np.asarray(hdf5_fred['admin/dates_index']))
 
     filepaths = ['sample_zero_one',

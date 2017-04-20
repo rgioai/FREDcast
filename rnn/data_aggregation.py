@@ -6,14 +6,12 @@ def aggregate_rnn_data():
     hdf5 = h5py.File('rnn_data.hdf5')
     hdf5_fred = h5py.File('FREDcast.hdf5')
 
-    arr = np.asarray(hdf5_fred['admin/values_index'])
-    repeat_arr = np.array([arr] * 12).flatten()
-    hdf5.create_dataset('admin/values_index', data=repeat_arr)
+    repeat_arr = np.array([np.asarray(hdf5_fred['zero_one'])] * 12).flatten()
     hdf5.create_dataset('admin/dates_index', data=np.asarray(hdf5_fred['admin/dates_index']))
 
     dset_agg = np.empty(shape=(601, repeat_arr.size),
                         dtype=np.float32)
-    assert (dset_agg.shape == (601, arr.size * 12))
+    assert (dset_agg.shape == (601, np.asarray(hdf5_fred['zero_one']).size * 12))
 
     filepaths = ['zero_one',
                  'zero_one_linear_residual',
@@ -36,6 +34,6 @@ def aggregate_rnn_data():
         dset_agg[:, loc:norm_dset.shape[1]] = norm_dset[:, :]
         loc += norm_dset.shape[1]
 
-    hdf5.create_dataset(path + '/train_x', data=dset_agg[0:597, :])
-    hdf5.create_dataset(path + '/test_x', data=dset_agg[:-3, :])
+    hdf5.create_dataset('data/train_x', data=dset_agg[0:597, :])
+    hdf5.create_dataset('data/test_x', data=dset_agg[:-3, :])
     hdf5.close()

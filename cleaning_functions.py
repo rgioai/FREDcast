@@ -1,8 +1,8 @@
+import csv
 import datetime as dt
+import warnings
 
 import numpy as np
-import warnings
-import csv
 
 
 def forward_fill(data_column):
@@ -38,7 +38,7 @@ def time_scale(data_column, date_column, freq=None):
         for i in range(0, len(indices_dl), 1):
             scaled_data[indices_dl[i]] = data_column[indices_dc[i]]
 
-        return truncate_column(scaled_data)
+        return trim_column(scaled_data)
 
     elif freq == 'daily':
         scaled_data = np.empty(shape=(18264,), dtype=np.float32)
@@ -70,7 +70,7 @@ def time_scale(data_column, date_column, freq=None):
                 warnings.simplefilter('ignore')
                 scaled_data[i] = np.nanmean(scaled_data[start:stop])
 
-        return truncate_column(scaled_data)
+        return trim_column(scaled_data)
 
     elif freq is None:
         # Added some wriggle room for business days
@@ -90,7 +90,7 @@ def time_scale(data_column, date_column, freq=None):
         raise ValueError('Frequency value not recognized')
 
 
-def truncate_column(data_column, max_length=601):
+def trim_column(data_column, max_length=601):
     """
     Abstraction of numpy slicing operation for single column truncation.
     :param data_column: 1D np.array
@@ -98,7 +98,7 @@ def truncate_column(data_column, max_length=601):
     :return: np.array
     """
     assert (len(data_column.shape) == 1)  # Assert data_column is a 1D numpy array
-    return data_column[-1*max_length:]  # TODO Verify that any array slicing is correct
+    return data_column[:max_length]
 
 
 def truncate_loss(dataset, isTest=False):
@@ -173,6 +173,17 @@ def forward_fill_loss(dataset_raw, dataset_clean, isTest=False):
             csvfile.write('\n')
 
 
+def truncate_column(data_column, truncation_point):
+    """
+    Abstraction of numpy slicing operation for 2D array truncation.
+    :param dataset: 2D np.array
+    :param truncation_point: int of truncation index to test
+    :return: np.array
+    """
+    assert (len(data_column.shape) == 1)  # Assert data_column is a 1D numpy array
+    return data_column[-1 * truncation_point:]
+
+
 def truncate_dataset(dataset, truncation_point):
     """
     Abstraction of numpy slicing operation for 2D array truncation.
@@ -181,15 +192,14 @@ def truncate_dataset(dataset, truncation_point):
     :return: np.array
     """
     assert (len(dataset.shape) == 2)  # Assert data_column is a 2D numpy array
-    # TODO Also truncate dates_index
-    return dataset[-1*truncation_point:]
+    return dataset[-1 * truncation_point:]
 
 
 def truncate_hdf5(hdf5_file, truncation_point):
-    # TODO Run truncate_column on dates_index
-    # TODO Run truncate_dataset on clean
-    # TODO Make sure other code calls this; not truncate_dataset or truncate_column
-    pass
+    hdf5 = hdf5_file
+    truncate_column(np.asarray(hdf5['admin/dates_index']), truncation_point)
+    truncate_dataset(np.asarray(hdf5['data/clean']), truncation_point)
+    hdf5.close()
 
 
 if __name__ == '__main__':
@@ -288,10 +298,10 @@ if __name__ == '__main__':
             self.assertEqual(test_result.dtype, np.float32)
             np.testing.assert_array_almost_equal(test_result, solution)
 
-        def test_truncate_column(self):
+        def test_trim_column(self):
             test_data_column = np.empty(shape=(700,), dtype=np.float32)
             solution = np.empty(shape=(601,), dtype=np.float32)
-            test_result = truncate_column(test_data_column)
+            test_result = trim_column(test_data_column)
 
             self.assertEqual(test_result.shape, (601,))
             self.assertEqual(test_result.dtype, np.float32)
@@ -342,7 +352,6 @@ if __name__ == '__main__':
             self.assertEqual(percent_on_date['1967-05-01'], '40.0%')
             self.assertEqual(percent_on_date['1967-06-01'], '40.0%')
 
-
             with open('truncate_ffill_feature_UT.csv', 'r') as f:
                 reader = csv.reader(f)
                 percent_on_feature = {}
@@ -354,17 +363,34 @@ if __name__ == '__main__':
             self.assertEqual(percent_on_feature['2'], '100.0%')
             self.assertEqual(percent_on_feature['3'], '0.0%')
 
-        def test_truncate_dataset(self):
-            test_data_column = np.empty(shape=(700, 2), dtype=np.float32)
-            solution = np.empty(shape=(601, 2), dtype=np.float32)
-            test_result = truncate_dataset(test_data_column, 601)
+        def test_truncate_column(self):
+            test_data_column = np.empty(shape=(601,), dtype=np.float32)
+            test_data_column[:] = 0
+            test_data_column[-5:] = 1
 
-            self.assertEqual(test_result.shape, (601, 2))
+            solution = np.empty(shape=(5,), dtype=np.float32)
+            solution[:] = 1
+            test_result = truncate_column(test_data_column, 5)
+
+            self.assertEqual(test_result.shape, (5,))
             self.assertEqual(test_result.dtype, np.float32)
+            np.testing.assert_array_almost_equal(test_result, solution)
 
-            # TODO Add example case
-            # a = [0, 1, 2, 3, 4, 5]
-            # b = [3, 4, 5]
+        def test_truncate_dataset(self):
+            test_dataset = np.empty(shape=(601, 2), dtype=np.float32)
+            test_dataset[:, 0] = 0
+            test_dataset[-5:, 0] = 1
+            test_dataset[:, 1] = 1
+            test_dataset[-5:, 1] = 2
+
+            solution = np.empty(shape=(5, 2), dtype=np.float32)
+            solution[:, 0] = 1
+            solution[:, 1] = 2
+            test_result = truncate_dataset(test_dataset, 5)
+
+            self.assertEqual(test_result.shape, (5, 2))
+            self.assertEqual(test_result.dtype, np.float32)
+            np.testing.assert_array_almost_equal(test_result, solution)
 
         def tearDown(self):
             pass
