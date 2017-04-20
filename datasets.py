@@ -12,8 +12,8 @@ s.load()
 START_TIME = dt.datetime.now()
 TOTAL_CALLS = 0
 TOTAL_SLEEP = 0
-AUTH_TOKEN = s.get('auth_code')
-
+AUTH_CODES = s.get('auth_codes')
+CURRENT_AUTH = 0
 
 def gather_gdp():
     hdf5 = h5py.File('FREDcast.hdf5')
@@ -38,7 +38,8 @@ def gather_indicators(start, end, append=False):
     global START_TIME
     global TOTAL_CALLS
     global TOTAL_SLEEP
-    global AUTH_TOKEN
+    global AUTH_CODES
+    global CURRENT_AUTH
 
     out = open('log.txt', 'w+')
     collection_timer = dt.datetime.now()
@@ -115,13 +116,20 @@ def gather_indicators(start, end, append=False):
             try:
                 quandl_values = qd.get(quandl_code + ".1", returns='numpy', collapse='daily',
                                        exclude_column_names=False, start_date='1967-4-1', end_date='2017-4-1',
-                                       auth_token=AUTH_TOKEN)
+                                       auth_token=AUTH_CODES[CURRENT_AUTH])
                 TOTAL_CALLS += 1
             except qd.QuandlError as e:
-                print(str(e) + '. IGNORING, retrying in 5 minutes.')
-                sleep(300)
-                TOTAL_SLEEP += 300
-                pass
+                if "daily" in e:
+                    print('Encountered max limit. Switching API key.')
+                    CURRENT_AUTH += 1
+                    if CURRENT_AUTH > len(AUTH_CODES) - 1:
+                        print('Expended all API keys. Terminating script, add more API keys in the future.')
+                        quit()
+                else:
+                    print(str(e) + '. IGNORING, retrying in 5 minutes.')
+                    sleep(300)
+                    TOTAL_SLEEP += 300
+                    pass
         quandl_values.dtype.names = ('Date', 'Value')
         quandl_values['Value'] = quandl_values['Value'].astype(np.float32)
         quandl_values['Date'] = quandl_values['Date'].astype('datetime64[D]')

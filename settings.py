@@ -5,8 +5,8 @@ class Settings(object):
         with open('_SETTINGS.txt') as settings_file:
             for line in settings_file:
                 if not line.strip().startswith('#'):
-                    if 'auth_code:' in line.strip():
-                        self.data['auth_code'] = line.strip().split(':')[1]
+                    if 'auth_codes:' in line.strip():
+                        self.data['auth_codes'] = line.strip().split(':')[1].split(',')
                     elif 'start:' in line.strip():
                         self.data['start'] = int(line.strip().split(':')[1])
                     elif 'end:' in line.strip():
