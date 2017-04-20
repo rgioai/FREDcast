@@ -33,6 +33,26 @@ def gather_gdp():
     gdp_dset[:, 0] = gdp_values
     hdf5.close()
 
+def gather_y():
+    hdf5 = h5py.File('FREDcast.hdf5')
+
+    y_dset = hdf5.create_dataset('admin/y_values', shape=(601, 4),
+                                   dtype=np.float32)
+
+    quandl_codes = ['FRED/UNEMPLOY', 'FRED/PAYEMS', 'FRED/GDP', 'FRED/CPIAUCSL']
+
+    for i in range(0, 4, 1):
+        quandl_values = qd.get(quandl_codes[i] + ".1", returns='numpy', collapse='daily',
+                               exclude_column_names=False, start_date='1967-4-1', end_date='2017-4-1')
+        quandl_values.dtype.names = ('Date', 'Value')
+        quandl_values['Value'] = quandl_values['Value'].astype(np.float32)
+        quandl_values['Date'] = quandl_values['Date'].astype('datetime64[D]')
+        time_scaled = time_scale(quandl_values['Value'], quandl_values['Date'])
+        forward_filled = forward_fill(time_scaled)
+        y_dset[:, i] = forward_filled
+
+    hdf5.close()
+
 
 def gather_indicators(start, end, append=False):
     global START_TIME
@@ -201,7 +221,9 @@ def gather_indicators(start, end, append=False):
 
 
 if __name__ == '__main__':
-    # gather_indicators(0, 1000, False)
-    start = s.get('start')
-    for i in range(start, 300000, 1000):
-        gather_indicators(i, i + 1000, True)
+    gather_y()
+
+    #gather_indicators(0, 1000, False)
+    #start = s.get('start')
+    #for i in range(start, 300000, 1000):
+        #gather_indicators(i, i + 1000, True)
