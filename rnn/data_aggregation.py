@@ -2,8 +2,11 @@ import h5py
 import numpy as np
 
 
-def aggregate_rnn_data():
-    hdf5 = h5py.File('rnn_data.hdf5')
+def aggregate_rnn_data(sample):
+    if sample is True:
+        hdf5 = h5py.File('rnn_data_sample.hdf5')
+    else:
+        hdf5 = h5py.File('rnn_data.hdf5')
     hdf5_fred = h5py.File('FREDcast.hdf5')
 
     repeat_arr = np.array([np.asarray(hdf5_fred['zero_one'])] * 12).flatten()

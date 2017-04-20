@@ -25,8 +25,8 @@
         /test_x
         /test_y
 
-# TODO Set up sample
-# TODO Fix FREDcast still
+# TODO Set up sample (after full data download)
+# TODO Fix FREDcast still (after full data download)
 /split_data_sample.hdf5
     * exact mirror of split_data.hdf5, but with only sample data
 
