@@ -119,7 +119,7 @@ def gather_indicators(start, end, append=False):
                                        auth_token=AUTH_CODES[CURRENT_AUTH])
                 TOTAL_CALLS += 1
             except qd.QuandlError as e:
-                if "daily" in e:
+                if "daily" in str(e):
                     print('Encountered max limit. Switching API key.')
                     CURRENT_AUTH += 1
                     if CURRENT_AUTH > len(AUTH_CODES) - 1:
