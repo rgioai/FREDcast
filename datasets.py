@@ -254,6 +254,7 @@ if __name__ == '__main__':
     del hdf5['y_values']
     del hdf5['values_index']
     del hdf5['gdp']
+    hdf5.close()
 
     create_admin_hdf5(sample=False)
     create_admin_hdf5(sample=True)
