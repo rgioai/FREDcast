@@ -248,8 +248,8 @@ def gather_indicators(start, end, append=False, sample=False):
 
 if __name__ == '__main__':
     # gather_y()
-    # create_admin_hdf5(sample=False)
-    # create_admin_hdf5(sample=True)
+    create_admin_hdf5(sample=False)
+    create_admin_hdf5(sample=True)
     gather_indicators(0, 1000, False, sample=True)
 
     # gather_indicators(0, 1000, False)
