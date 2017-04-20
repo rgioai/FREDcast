@@ -7,9 +7,10 @@ import numpy as np
 def split_data(sample):
     if sample is True:
         hdf5 = h5py.File('split_data_sample.hdf5')
+        hdf5_fred = h5py.File('FREDcast_sample.hdf5')
     else:
         hdf5 = h5py.File('split_data.hdf5')
-    hdf5_fred = h5py.File('FREDcast.hdf5')
+        hdf5_fred = h5py.File('FREDcast.hdf5')
 
     hdf5.create_dataset('admin/dates_index', data=np.asarray(hdf5_fred['admin/dates_index']))
 
@@ -26,12 +27,20 @@ def split_data(sample):
                  'normal_dist_exp_residual',
                  'normal_dist_gdp_residual']
 
+    y_data = [np.asarray(hdf5_fred['admin/gdp']),
+                np.asarray(hdf5_fred['admin/cpi']),
+                np.asarray(hdf5_fred['admin/payroll']),
+                    np.asarray(hdf5_fred['admin/unemployment'])]
+    y_data = np.hstack(y_data)
+
     for path in filepaths:
-        norm_dset = np.asarray(hdf5_fred[path])
+        norm_dset = np.asarray(hdf5_fred['data/norm_data/' + path])
         assert (norm_dset.shape[0] == 601)
         assert (norm_dset.dtype == np.float32)
-        hdf5.create_dataset(path + '/train_x', data=norm_dset[0:597, :])
-        hdf5.create_dataset(path + '/test_x', data=norm_dset[:-3, :])
+        hdf5.create_dataset(path + '/train_x', data=norm_dset[0:598, :])
+        hdf5.create_dataset(path + '/test_x', data=norm_dset[-3:, :])
+        hdf5.create_dataset(path + '/train_y', data=y_data[0:598, :])
+        hdf5.create_dataset(path + '/test_y', data=y_data[-3:, :])
     hdf5.close()
     hdf5_fred.close()
 
@@ -97,3 +106,8 @@ class TFLearn_Interface(Interface):
 
     def test_y(self):
         return self.hdf5[str(self.norm_fn) + '_' + str(self.residual_fn) + '/test_y']
+
+
+if __name__ == '__main__':
+    split_data(True)
+    split_data(False)

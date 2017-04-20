@@ -1,6 +1,10 @@
 /FREDcast.hdf5
     /admin
         /dates_index (dset whose values correspond to the months represented by the rows in each actual data table)
+        /gdp
+        /cpi
+        /payroll
+        /unemployment
     /data
         /raw (dset of all indicators)
         /clean (dset of all indicators, with forward filling and truncating)
@@ -8,13 +12,7 @@
             /{norm_fn}_{residual_fn}
 
 /FREDcast_sample.hdf5
-    /admin
-        /dates_index (dset whose values correspond to the months represented by the rows in each actual data table)
-    /data
-        /raw
-        /clean
-        /norm_data
-            {norm_fn}_{residual_fn}
+    * exact mirror of FREDcast.hdf5, but with only sample data
 
 /split_data.hdf5
     /admin
@@ -25,8 +23,6 @@
         /test_x
         /test_y
 
-# TODO Set up sample (after full data download)
-# TODO Fix FREDcast still (after full data download)
 /split_data_sample.hdf5
     * exact mirror of split_data.hdf5, but with only sample data
 
@@ -40,12 +36,11 @@
         /test_y
 
 /rnn_data_sample.hdf5
-    * exact mirror of split_data.hdf5, but with only sample data
+    * exact mirror of rnn_data.hdf5, but with only sample data
     
 /admin.hdf5
     /codes - fixed length ascii
     /descriptions - vlen str; whatever dtype is most size efficient
     
 /admin_sample.hdf5
-    /codes
-    /descriptions
+    * exact mirror of admin.hdf5, but with only sample data
