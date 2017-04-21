@@ -137,9 +137,9 @@ def forward_fill_loss(dataset_raw, dataset_clean, isTest=False):
     for i in range(0, 601, 1):
         percent_nan = 0
         date_list.append((np.datetime64('1967-04') + np.timedelta64(i, 'M')).astype(dt.datetime))
-        nan_indicies = np.argwhere(np.isnan(dataset_raw[i, :]))
+        nan_indicies = np.argwhere(np.isnan(dataset_raw[:, i]))
         for index in nan_indicies:
-            if dataset_clean[index] is not np.nan:
+            if dataset_clean[index, i] is not np.nan:
                 percent_nan += 1
         percent_list.append(percent_nan / dataset_raw.shape[1])
 
@@ -159,7 +159,7 @@ def forward_fill_loss(dataset_raw, dataset_clean, isTest=False):
         percent_nan = 0
         nan_indicies = np.argwhere(np.isnan(dataset_raw[:, i]))
         for index in nan_indicies:
-            if dataset_clean[index] is not np.nan:
+            if dataset_clean[index, i] is not np.nan:
                 percent_nan += 1
         percent_list.append(percent_nan / 601)
 

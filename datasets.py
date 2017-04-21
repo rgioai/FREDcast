@@ -156,7 +156,7 @@ def gather_indicators(start, end, append=False, sample=False):
     for i in range(start, end):
         pos += 1
         quandl_code = str(quandl_codes[i])[2:-1]
-        print(quandl_codes[i], pos)
+        print(quandl_code, pos)
         quandl_values = None
         while quandl_values is None:
             try:
@@ -247,11 +247,15 @@ def gather_indicators(start, end, append=False, sample=False):
 
 
 if __name__ == '__main__':
-    # gather_y()
-
-    create_admin_hdf5(sample=False)
-    create_admin_hdf5(sample=True)
-    gather_indicators(0, 1000, False, sample=True)
+    # create_admin_hdf5(sample=False)
+    # create_admin_hdf5(sample=True)
+    # gather_indicators(0, 1000, False, sample=True)
+    hdf5 = h5py.File('FREDcast.hdf5')
+    raw = np.asarray(hdf5['data/raw'])
+    clean = np.asarray(hdf5['data/clean'])
+    truncate_loss(clean)
+    forward_fill_loss(raw, clean)
+    hdf5.close()
 
     # gather_indicators(0, 1000, False)
     # start = s.get('start')
