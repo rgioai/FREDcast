@@ -104,7 +104,9 @@ def gather_indicators(start, end, append=False, sample=False):
         old_dset_raw = np.asarray(hdf5_old['data/raw'])
         old_dset_clean = np.asarray(hdf5_old['data/clean'])
         old_gdp = np.asarray(hdf5_old['admin/gdp'])
-        old_index = np.asarray(hdf5_old['admin/values_index'])
+        old_cpi = np.asarray(hdf5_old['admin/cpi'])
+        old_payroll = np.asarray(hdf5_old['admin/payroll'])
+        old_unemployment = np.asarray(hdf5_old['admin/unemployment'])
         old_dates = np.asarray(hdf5_old['admin/dates_index'])
         hdf5_old.close()
         os.rename(os.path.realpath('FREDcast.hdf5'), os.path.realpath('FREDcast.hdf5') + '.bak')
@@ -129,13 +131,17 @@ def gather_indicators(start, end, append=False, sample=False):
         dset_raw = hdf5.create_dataset('data/raw', data=old_dset_raw)
         dset_clean = hdf5.create_dataset('data/clean', data=old_dset_clean)
         hdf5.create_dataset('admin/gdp', data=old_gdp)
-        hdf5.create_dataset('admin/values_index', data=old_index)
+        hdf5.create_dataset('admin/cpi', data=old_cpi)
+        hdf5.create_dataset('admin/payroll', data=old_payroll)
+        hdf5.create_dataset('admin/unemployment', data=old_unemployment)
         hdf5.create_dataset('admin/dates_index', data=old_dates)
         # Freeing space in memory
         del old_dset_raw
         del old_dset_clean
         del old_gdp
-        del old_index
+        del old_cpi
+        del old_payroll
+        del old_unemployment
         del old_dates
     if append is False:
         gather_y(sample)
@@ -247,17 +253,18 @@ def gather_indicators(start, end, append=False, sample=False):
 
 
 if __name__ == '__main__':
+    # FUTURE: I will move all this to the interface.
     # create_admin_hdf5(sample=False)
     # create_admin_hdf5(sample=True)
     # gather_indicators(0, 1000, False, sample=True)
-    hdf5 = h5py.File('FREDcast.hdf5')
-    raw = np.asarray(hdf5['data/raw'])
-    clean = np.asarray(hdf5['data/clean'])
-    truncate_loss(clean)
-    forward_fill_loss(raw, clean)
-    hdf5.close()
+    # hdf5 = h5py.File('FREDcast.hdf5')
+    # raw = np.asarray(hdf5['data/raw'])
+    # clean = np.asarray(hdf5['data/clean'])
+    # truncate_loss(clean)
+    # forward_fill_loss(raw, clean)
+    # hdf5.close()
 
     # gather_indicators(0, 1000, False)
-    # start = s.get('start')
-    # for i in range(start, 300000, 1000):
-    # gather_indicators(i, i + 1000, True)
+    start = s.get('start')
+    for i in range(start, 300000, 1000):
+        gather_indicators(i, i + 1000, True)
