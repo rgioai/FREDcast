@@ -1,5 +1,6 @@
 import numpy as np
 import h5py
+import scipy.stats as st
 
 
 def get_feature_vector(norm_fn, residual_fn=None):
@@ -27,35 +28,23 @@ def generate_all_results(trained_classifier, norm_fn, residual_fn):
             test_vector[feature_index] = feature_vector[feature_index] * scale
             feature_results[scale] = np.linalg.norm(clf.predict(
                 test_vector) - original_prediction)
-            # TODO this will be a vector.  Get it's magnitude to make it a scalar.
-            # Am I saving it to the correct location in memory?
-            ## The array size wouldn't support the two-line solution you had, but it will support the one-liner
-            ## feature_results[scale] = np.linalg.norm(feature_results[scale])
 
-        all_results[feature_index][0] = np.mean(feature_results)  # TODO Verify numpy API
-        all_results[feature_index][1] = np.std(feature_results)  # TODO Verify numpy API
-        # These should return what we want unless there are any NAN values. Then we should use nanmean and nanstd.
-        ## Assume there won't be any nan values, they should have been cleaned prior.
+        all_results[feature_index][0] = np.mean(feature_results)
+        all_results[feature_index][1] = np.std(feature_results)
     return all_results
 
 
 def generate_significance(all_results, confidence_interval=0.95):
     all_significance = np.empty((len(all_results, 3)), dtype=np.float32)
 
-    # TODO Support CI of 0.90, 0.95, 0.99 at least; more if easy
-    # Not sure what needs to be done here. Are we replacing z with confidence_interval, or something else?
-    ## z is the points on the standard normal distribution such that the area under the curve between -z and z is equal
-    ## to the confidence interval.  Basic stats uses the above three values mostly, referenced from a 
-    ## standard table (http://www.stat.ufl.edu/~athienit/Tables/Ztable.pdf).  That said, it is just an integral,
-    ## something that python ought to be able to do.  For example:
     if confidence_interval == 0.90:
-        z = ??
+        z = 1.645
     if confidence_interval == 0.95:
         z = 1.96
     elif confidence_interval == 0.99:
-        z = ??
+        z = 2.576
     else:
-        z = ?? # actually do the full calculation
+        z = st.norm.ppf(1 - (1 - confidence_interval) / 2)
 
     for i in range(len(all_results)):
         all_significance[i][0] = all_results[i][0] - (z * all_results[i][1])
@@ -70,8 +59,6 @@ def generate_winners_losers(all_significance):
     names = np.asarray(hdf5['codes'])
 
     winners = []
-    # TODO Should be sorting on entry 1 (means), need verified
-    ## Correct
     sorted_all = np.sort(all_significance, axis=1)[::-1]
     indices = np.argsort(all_significance, axis=1)[::-1]
 
