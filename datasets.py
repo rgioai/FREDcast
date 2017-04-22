@@ -170,11 +170,15 @@ def gather_indicators(start, end, append=False, sample=False):
                                        exclude_column_names=False, start_date='1967-4-1', end_date='2017-4-1',
                                        auth_token=AUTH_CODES[CURRENT_AUTH])
                 TOTAL_CALLS += 1
+                looping = False
             except qd.QuandlError as e:
                 if "daily" in str(e):
                     print('Encountered max limit. Switching API key.')
                     CURRENT_AUTH += 1
                     if CURRENT_AUTH > len(AUTH_CODES) - 1:
+                        looping = True
+                        CURRENT_AUTH = 0
+                    if CURRENT_AUTH > len(AUTH_CODES) - 1 and looping:
                         print('Expended all API keys. Terminating script, add more API keys in the future.')
                         quit()
                 else:
@@ -266,5 +270,6 @@ if __name__ == '__main__':
 
     # gather_indicators(0, 1000, False)
     start = s.get('start')
-    for i in range(start, 300000, 1000):
+    for i in range(start, 339000, 1000):
         gather_indicators(i, i + 1000, True)
+    gather_indicators(339000, 339870, True)
