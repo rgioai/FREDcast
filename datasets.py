@@ -258,18 +258,21 @@ def gather_indicators(start, end, append=False, sample=False):
 
 if __name__ == '__main__':
     # FUTURE: I will move all this to the interface.
+
     # create_admin_hdf5(sample=False)
     # create_admin_hdf5(sample=True)
+
+    hdf5 = h5py.File('FREDcast.hdf5')
+    raw = np.asarray(hdf5['data/raw'])
+    clean = np.asarray(hdf5['data/clean'])
+    truncate_loss(clean)
+    forward_fill_loss(raw, clean)
+    hdf5.close()
+
     # gather_indicators(0, 1000, False, sample=True)
-    # hdf5 = h5py.File('FREDcast.hdf5')
-    # raw = np.asarray(hdf5['data/raw'])
-    # clean = np.asarray(hdf5['data/clean'])
-    # truncate_loss(clean)
-    # forward_fill_loss(raw, clean)
-    # hdf5.close()
 
     # gather_indicators(0, 1000, False)
-    start = s.get('start')
-    for i in range(start, 339000, 1000):
-        gather_indicators(i, i + 1000, True)
-    gather_indicators(339000, 339870, True)
+    # start = s.get('start')
+    # for i in range(start, 339000, 1000):
+    #     gather_indicators(i, i + 1000, True)
+    # gather_indicators(339000, 339870, True)

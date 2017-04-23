@@ -134,18 +134,18 @@ def forward_fill_loss(dataset_raw, dataset_clean, isTest=False):
     date_list = []
     percent_list = []
     # month
-    for i in range(0, 601, 1):
+    for i in range(0, dataset_raw.shape[0], 1):
         percent_nan = 0
         date_list.append((np.datetime64('1967-04') + np.timedelta64(i, 'M')).astype(dt.datetime))
-        nan_indicies = np.argwhere(np.isnan(dataset_raw[:, i]))
+        nan_indicies = np.argwhere(np.isnan(dataset_raw[i, :]))
         for index in nan_indicies:
-            if dataset_clean[index, i] is not np.nan:
+            if dataset_clean[i, index] is not np.nan:
                 percent_nan += 1
         percent_list.append(percent_nan / dataset_raw.shape[1])
 
-    filename1 = 'truncate_ffill_month.csv'
+    filename1 = 'ffill_loss_month.csv'
     if isTest:
-        filename1 = 'truncate_ffill_month_UT.csv'
+        filename1 = 'ffill_loss_month_UT.csv'
 
     with open(filename1, 'w+') as csvfile:
         for date, percent in zip(date_list, percent_list):
@@ -163,9 +163,9 @@ def forward_fill_loss(dataset_raw, dataset_clean, isTest=False):
                 percent_nan += 1
         percent_list.append(percent_nan / 601)
 
-    filename1 = 'truncate_ffill_feature.csv'
+    filename1 = 'ffill_loss_feature.csv'
     if isTest:
-        filename1 = 'truncate_ffill_feature_UT.csv'
+        filename1 = 'ffill_loss_feature_UT.csv'
 
     with open(filename1, 'w+') as csvfile:
         for feature, percent in zip(feature_list, percent_list):
@@ -341,7 +341,7 @@ if __name__ == '__main__':
 
             forward_fill_loss(test_data_column_raw, test_data_column_clean, isTest=True)
 
-            with open('truncate_ffill_month_UT.csv', 'r') as f:
+            with open('ffill_loss_month_UT.csv', 'r') as f:
                 reader = csv.reader(f)
                 percent_on_date = {}
                 for row in reader:
@@ -352,7 +352,7 @@ if __name__ == '__main__':
             self.assertEqual(percent_on_date['1967-05-01'], '40.0%')
             self.assertEqual(percent_on_date['1967-06-01'], '40.0%')
 
-            with open('truncate_ffill_feature_UT.csv', 'r') as f:
+            with open('ffill_loss_feature_UT.csv', 'r') as f:
                 reader = csv.reader(f)
                 percent_on_feature = {}
                 for row in reader:
