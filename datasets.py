@@ -241,12 +241,14 @@ def normalize_data(sample=False):
                  [gdp_residual, normal_dist]]
 
     for path, function in zip(filepaths, functions):
+        print(path[15:])
         n_dset = hdf5.create_dataset(path, shape=(dset_clean.shape[0], dset_clean.shape[1]),
                                      dtype=np.float32)
         normalizer_timer = dt.datetime.now()
         n_dset[:, :] = normalize_dataset(dset_clean[:, :], function[0], function[1])
         out.write(path[15:] + ' runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
+    out.close()
     hdf5.close()
 
 
@@ -266,7 +268,9 @@ if __name__ == '__main__':
     # create_admin_hdf5(sample=False)
     # create_admin_hdf5(sample=True)
 
+    print('Sample Data')
     modify_data(sample=True)
+    print('Full Data')
     modify_data(sample=False)
 
     hdf5 = h5py.File('FREDcast.hdf5')
