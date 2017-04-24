@@ -1,7 +1,9 @@
 import csv
 import datetime as dt
 import warnings
+import os
 
+import h5py
 import numpy as np
 
 
@@ -175,8 +177,8 @@ def forward_fill_loss(dataset_raw, dataset_clean, isTest=False):
 
 def truncate_column(data_column, truncation_point):
     """
-    Abstraction of numpy slicing operation for 2D array truncation.
-    :param dataset: 2D np.array
+    Abstraction of numpy slicing operation for 1D array truncation.
+    :param data_column: 1D np.array
     :param truncation_point: int of truncation index to test
     :return: np.array
     """
@@ -196,10 +198,93 @@ def truncate_dataset(dataset, truncation_point):
 
 
 def truncate_hdf5(hdf5_file, truncation_point):
-    hdf5 = hdf5_file
-    truncate_column(np.asarray(hdf5['admin/dates_index']), truncation_point)
-    truncate_dataset(np.asarray(hdf5['data/clean']), truncation_point)
+    hdf5_old = h5py.File(hdf5_file)
+    old_dset_raw = np.asarray(hdf5_old['data/raw'])
+    old_dset_clean = np.asarray(hdf5_old['data/clean'])
+    old_gdp = np.asarray(hdf5_old['admin/gdp'])
+    old_cpi = np.asarray(hdf5_old['admin/cpi'])
+    old_payroll = np.asarray(hdf5_old['admin/payroll'])
+    old_unemployment = np.asarray(hdf5_old['admin/unemployment'])
+    old_dates = np.asarray(hdf5_old['admin/dates_index'])
+    hdf5_old.close()
+    os.rename(os.path.realpath(hdf5_file), os.path.realpath(hdf5_file) + '.bak')
+
+    mod_dset_raw = truncate_dataset(old_dset_raw, truncation_point)
+    del old_dset_raw
+    mod_dset_clean = truncate_dataset(old_dset_clean, truncation_point)
+    del old_dset_clean
+    mod_gdp = truncate_dataset(old_gdp, truncation_point)
+    del old_gdp
+    mod_cpi = truncate_dataset(old_cpi, truncation_point)
+    del old_cpi
+    mod_payroll = truncate_dataset(old_payroll, truncation_point)
+    del old_payroll
+    mod_unemployment = truncate_dataset(old_unemployment, truncation_point)
+    del old_unemployment
+    mod_dates = truncate_column(old_dates, truncation_point)
+    del old_dates
+
+    hdf5 = h5py.File(hdf5_file)
+    hdf5.create_dataset('data/raw', data=mod_dset_raw)
+    hdf5.create_dataset('data/clean', data=mod_dset_clean)
+    hdf5.create_dataset('admin/gdp', data=mod_gdp)
+    hdf5.create_dataset('admin/cpi', data=mod_cpi)
+    hdf5.create_dataset('admin/payroll', data=mod_payroll)
+    hdf5.create_dataset('admin/unemployment', data=mod_unemployment)
+    hdf5.create_dataset('admin/dates_index', data=mod_dates)
     hdf5.close()
+
+
+def remove_nan_features(hdf5_file, admin_file):
+    if 'sample' in hdf5_file and 'sample' not in admin_file:
+        raise ValueError('Sample and non sample file mismatch!')
+    if 'sample' not in hdf5_file and 'sample' in admin_file:
+        raise ValueError('Sample and non sample file mismatch!')
+    else:
+        hdf5_old = h5py.File(hdf5_file)
+        hdf5_admin_old = h5py.File(admin_file)
+        old_dset_raw = np.asarray(hdf5_old['data/raw'])
+        old_dset_clean = np.asarray(hdf5_old['data/clean'])
+        old_gdp = np.asarray(hdf5_old['admin/gdp'])
+        old_cpi = np.asarray(hdf5_old['admin/cpi'])
+        old_payroll = np.asarray(hdf5_old['admin/payroll'])
+        old_unemployment = np.asarray(hdf5_old['admin/unemployment'])
+        old_dates = np.asarray(hdf5_old['admin/dates_index'])
+        old_codes = np.asarray(hdf5_admin_old['admin/codes'])
+        old_descriptions = np.asarray(hdf5_admin_old['admin/descriptions'])
+        hdf5_old.close()
+        hdf5_admin_old.close()
+        os.rename(os.path.realpath(hdf5_file), os.path.realpath(hdf5_file) + '.bak')
+        os.rename(os.path.realpath(admin_file), os.path.realpath(admin_file) + '.bak')
+
+        nan_columns = []
+        for i in range(0, old_dset_clean.shape[1], 1):
+            col = old_dset_clean[:, i]
+            if np.all(np.isnan(col)):
+                nan_columns.append(i)
+
+        mod_dset_raw = np.delete(old_dset_raw, nan_columns, axis=1)
+        del old_dset_raw
+        mod_dset_clean = np.delete(old_dset_clean, nan_columns, axis=1)
+        del old_dset_clean
+        mod_codes = np.delete(old_codes, nan_columns)
+        del old_codes
+        mod_descriptions = np.delete(old_descriptions, nan_columns)
+        del old_descriptions
+
+        hdf5 = h5py.File(hdf5_file)
+        hdf5.create_dataset('data/raw', data=mod_dset_raw)
+        hdf5.create_dataset('data/clean', data=mod_dset_clean)
+        hdf5.create_dataset('admin/gdp', data=old_gdp)
+        hdf5.create_dataset('admin/cpi', data=old_cpi)
+        hdf5.create_dataset('admin/payroll', data=old_payroll)
+        hdf5.create_dataset('admin/unemployment', data=old_unemployment)
+        hdf5.create_dataset('admin/dates_index', data=old_dates)
+        hdf5.close()
+        hdf5_admin = h5py.File(admin_file)
+        hdf5_admin.create_dataset('admin/codes', data=mod_codes)
+        hdf5_admin.create_dataset('admin/descriptions', data=mod_descriptions)
+        hdf5_admin.close()
 
 
 if __name__ == '__main__':

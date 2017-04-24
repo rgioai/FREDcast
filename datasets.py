@@ -1,4 +1,3 @@
-import os
 from time import sleep
 
 import quandl as qd
@@ -9,7 +8,6 @@ from norm_functions import *
 
 s = settings.Settings()
 s.load()
-START_TIME = dt.datetime.now()
 TOTAL_CALLS = 0
 TOTAL_SLEEP = 0
 AUTH_CODES = s.get('auth_codes')
@@ -23,7 +21,7 @@ def gather_y(sample):
         hdf5 = h5py.File('FREDcast.hdf5')
 
     dsets = [hdf5.create_dataset('admin/gdp', shape=(601, 1),
-                                   dtype=np.float32),
+                                 dtype=np.float32),
              hdf5.create_dataset('admin/cpi', shape=(601, 1),
                                  dtype=np.float32),
              hdf5.create_dataset('admin/payroll', shape=(601, 1),
@@ -35,8 +33,8 @@ def gather_y(sample):
 
     for dset, code in zip(dsets, codes):
         quandl_values = qd.get(code, returns='numpy', collapse='daily',
-                     exclude_column_names=False, start_date='1967-4-1', end_date='2017-4-1',
-                     auth_token='FM7y_rayzsW5AXASS_kD')
+                               exclude_column_names=False, start_date='1967-4-1', end_date='2017-4-1',
+                               auth_token='FM7y_rayzsW5AXASS_kD')
 
         quandl_values.dtype.names = ('Date', 'Value')
         quandl_values['Value'] = quandl_values['Value'].astype(np.float32)
@@ -81,14 +79,13 @@ def create_admin_hdf5(sample=False):
         hdf5.close()
 
 
-def gather_indicators(start, end, append=False, sample=False):
-    global START_TIME
+def gather_data(start, end, append=False, sample=False):
     global TOTAL_CALLS
     global TOTAL_SLEEP
     global AUTH_CODES
     global CURRENT_AUTH
 
-    out = open('log.txt', 'w+')
+    out = open('collection_log.txt', 'w+')
     collection_timer = dt.datetime.now()
 
     # Create a backup of the old FREDcast.hdf5 as FREDcast.hdf5.bak
@@ -204,56 +201,63 @@ def gather_indicators(start, end, append=False, sample=False):
     out.write('Total calls:' + str(TOTAL_CALLS) + '\n')
     out.write('Time spent waiting (in seconds):' + str(TOTAL_SLEEP) + '\n')
 
-    if append is True:
-        hdf5_old = h5py.File('FREDcast.hdf5.bak')
+    hdf5.close()
 
-        filepaths = ['data/norm_data/zero_one',
-                     'data/norm_data/zero_one_linear_residual',
-                     'data/norm_data/zero_one_exp_residual',
-                     'data/norm_data/zero_one_gdp_residual',
-                     'data/norm_data/percent_change',
-                     'data/norm_data/percent_change_linear_residual',
-                     'data/norm_data/percent_change_exp_residual',
-                     'data/norm_data/percent_change_gdp_residual',
-                     'data/norm_data/normal_dist',
-                     'data/norm_data/normal_dist_linear_residual',
-                     'data/norm_data/normal_dist_exp_residual',
-                     'data/norm_data/normal_dist_gdp_residual']
 
-        for path in filepaths:
-            n_dset = hdf5.create_dataset(path,
-                                         data=np.asarray(hdf5_old[path]))
-            normalizer_timer = dt.datetime.now()
-            n_dset[:, start:end] = normalize_dataset(dset_clean[:, start:end], zero_one)
-            out.write(path[15:] + ' runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
+def normalize_data(sample=False):
+    if sample is True:
+        hdf5 = h5py.File('FREDcast_sample.hdf5')
+    else:
+        hdf5 = h5py.File('FREDcast.hdf5')
 
-        hdf5_old.close()
+    out = open('normalization_log.txt', 'w+')
 
-    if append is False:
-        filepaths = ['data/norm_data/zero_one',
-                     'data/norm_data/zero_one_linear_residual',
-                     'data/norm_data/zero_one_exp_residual',
-                     'data/norm_data/zero_one_gdp_residual',
-                     'data/norm_data/percent_change',
-                     'data/norm_data/percent_change_linear_residual',
-                     'data/norm_data/percent_change_exp_residual',
-                     'data/norm_data/percent_change_gdp_residual',
-                     'data/norm_data/normal_dist',
-                     'data/norm_data/normal_dist_linear_residual',
-                     'data/norm_data/normal_dist_exp_residual',
-                     'data/norm_data/normal_dist_gdp_residual']
+    dset_clean = np.asarray(hdf5['data/clean'])
 
-        for path in filepaths:
-            n_dset = hdf5.create_dataset(path, shape=(601, len(quandl_codes)),
-                                         dtype=np.float32)
-            normalizer_timer = dt.datetime.now()
-            n_dset[:, start:end] = normalize_dataset(dset_clean[:, start:end], zero_one)
-            out.write(path[15:] + ' runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
+    filepaths = ['data/norm_data/zero_one',
+                 'data/norm_data/zero_one_linear_residual',
+                 'data/norm_data/zero_one_exp_residual',
+                 'data/norm_data/zero_one_gdp_residual',
+                 'data/norm_data/percent_change',
+                 'data/norm_data/percent_change_linear_residual',
+                 'data/norm_data/percent_change_exp_residual',
+                 'data/norm_data/percent_change_gdp_residual',
+                 'data/norm_data/normal_dist',
+                 'data/norm_data/normal_dist_linear_residual',
+                 'data/norm_data/normal_dist_exp_residual',
+                 'data/norm_data/normal_dist_gdp_residual']
+
+    functions = [[zero_one, None],
+                 [linear_residual, zero_one],
+                 [exp_residual, zero_one],
+                 [gdp_residual, zero_one],
+                 [percent_change, None],
+                 [linear_residual, percent_change],
+                 [exp_residual, percent_change],
+                 [gdp_residual, percent_change],
+                 [normal_dist, None],
+                 [linear_residual, normal_dist],
+                 [exp_residual, normal_dist],
+                 [gdp_residual, normal_dist]]
+
+    for path, function in zip(filepaths, functions):
+        n_dset = hdf5.create_dataset(path, shape=(dset_clean.shape[0], dset_clean.shape[1]),
+                                     dtype=np.float32)
+        normalizer_timer = dt.datetime.now()
+        n_dset[:, :] = normalize_dataset(dset_clean[:, :], function[0], function[1])
+        out.write(path[15:] + ' runtime:' + str(dt.datetime.now() - normalizer_timer) + '\n')
 
     hdf5.close()
 
-    out.write('Total runtime:' + str(dt.datetime.now() - START_TIME) + '\n')
-    out.close()
+
+def modify_data(sample=False):
+    if sample is True:
+        truncate_hdf5('FREDcast_sample.hdf5', 328)
+        remove_nan_features('FREDcast_sample.hdf5', 'admin_sample.hdf5')
+    else:
+        truncate_hdf5('FREDcast.hdf5', 328)
+        remove_nan_features('FREDcast.hdf5', 'admin.hdf5')
+    normalize_data(sample=sample)
 
 
 if __name__ == '__main__':
@@ -262,6 +266,9 @@ if __name__ == '__main__':
     # create_admin_hdf5(sample=False)
     # create_admin_hdf5(sample=True)
 
+    modify_data(sample=True)
+    modify_data(sample=False)
+
     hdf5 = h5py.File('FREDcast.hdf5')
     raw = np.asarray(hdf5['data/raw'])
     clean = np.asarray(hdf5['data/clean'])
@@ -269,10 +276,10 @@ if __name__ == '__main__':
     forward_fill_loss(raw, clean)
     hdf5.close()
 
-    # gather_indicators(0, 1000, False, sample=True)
+    # gather_data(0, 1000, False, sample=True)
 
-    # gather_indicators(0, 1000, False)
+    # gather_data(0, 1000, False)
     # start = s.get('start')
     # for i in range(start, 339000, 1000):
-    #     gather_indicators(i, i + 1000, True)
-    # gather_indicators(339000, 339870, True)
+    #     gather_data(i, i + 1000, True)
+    # gather_data(339000, 339870, True)

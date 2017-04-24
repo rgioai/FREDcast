@@ -1,6 +1,9 @@
 import numpy as np
 import h5py
 
+import warnings
+warnings.filterwarnings('ignore')
+
 def zero_one(data_column):
     # ((x - x_min)/(x_max - x_min))
 
