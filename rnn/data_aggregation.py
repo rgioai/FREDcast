@@ -17,7 +17,7 @@ def aggregate_rnn_data(sample):
     repeat_arr = np.asarray(hdf5_fred['data/norm_data/zero_one'])
     hdf5.create_dataset('admin/dates_index', data=np.asarray(hdf5_fred['admin/dates_index']))
 
-    dset_agg = np.empty(shape=(601, repeat_arr.shape[1] * 12),
+    dset_agg = np.empty(shape=(repeat_arr.shape[0], repeat_arr.shape[1] * 12),
                         dtype=np.float32)
     # assert (dset_agg.shape == (601, repeat_arr.shape[1] * 12))
 
