@@ -112,7 +112,7 @@ def truncate_loss(dataset, isTest=False):
     """
     date_list = []
     percent_list = []
-    for i in range(0, 601, 1):
+    for i in range(0, dataset.shape[0], 1):
         date_list.append((np.datetime64('1967-04') + np.timedelta64(i, 'M')).astype(dt.datetime))
         percent_list.append(np.count_nonzero(np.isnan(dataset[i, :])) / dataset.shape[1])
 
