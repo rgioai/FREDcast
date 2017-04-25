@@ -81,8 +81,30 @@ def valid_model_param_dict(param_dict):
 
 
 def default_model_param_dict():
-    # TODO Return a default model
-    return {}
+    """
+    incoming, placeholder=None, optimizer='adam', loss='categorical_crossentropy',
+    metric='default', learning_rate=0.001, dtype=tf.float32, batch_size=64,
+    shuffle_batches=True, to_one_hot=False, n_classes=None,
+    trainable_vars=None, restore=True, op_name=None,
+    validation_monitors=None, validation_batch_size=None, name=None
+    :return:
+    """
+    return {'optimizer': 'adam',
+            'loss': 'categorical_crossentropy',
+            'metric': 'r2',  # TODO verify this works
+            'learning_rate': 0.001,
+            'dtype': tf.float32,
+            'batch_size': 64,
+            'shuffle_batches': True,
+            'to_one_hot': False,
+            'n_classes': None,
+            'trainable_vars': None,
+            'restore': True,
+            'op_name': None,
+            'validation_monitors': None,
+            'validation_batch_size': None,
+            'name': None
+        }
 
 
 def rnn_model(data_width, scaling_factor, architecture='lstm', model_params=None, layer_params=None):
