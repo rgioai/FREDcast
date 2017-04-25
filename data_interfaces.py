@@ -35,7 +35,7 @@ def split_data(sample):
 
     for path in filepaths:
         norm_dset = np.asarray(hdf5_fred['data/norm_data/' + path])
-        assert (norm_dset.shape[0] == 601)
+        # assert (norm_dset.shape[0] == 601)
         assert (norm_dset.dtype == np.float32)
         hdf5.create_dataset(path + '/train_x', data=norm_dset[0:598, :])
         hdf5.create_dataset(path + '/test_x', data=norm_dset[-3:, :])
