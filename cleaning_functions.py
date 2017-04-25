@@ -22,17 +22,13 @@ def forward_fill(data_column):
 
 def time_scale(data_column, date_column, freq=None):
     # Removed redundancies, as they still provided accurate calculations even with different 'intervals'.
+    hdf5 = h5py.File('FREDcast.hdf5')
+    date_list = np.asarray(hdf5['admin/dates_index']).astype(np.datetime64)
+    hdf5.close()
 
     if freq == 'monthly':
-        scaled_data = np.empty(shape=(601,), dtype=np.float32)
+        scaled_data = np.empty(shape=(date_list.shape[0],), dtype=np.float32)
         scaled_data[:] = np.nan
-
-        start_date = np.datetime64('1967-04')
-        date_list = []
-        for i in range(0, 601, 1):
-            date_list.append((start_date + np.timedelta64(i, 'M')).astype(dt.datetime))
-
-        date_list = np.asarray(date_list)
 
         indices_dl = np.arange(date_list.shape[0])[np.in1d(date_list, date_column)]
         indices_dc = np.arange(date_column.shape[0])[np.in1d(date_column, date_list)]
@@ -40,29 +36,33 @@ def time_scale(data_column, date_column, freq=None):
         for i in range(0, len(indices_dl), 1):
             scaled_data[indices_dl[i]] = data_column[indices_dc[i]]
 
-        return trim_column(scaled_data)
+        return trim_column(scaled_data, date_list.shape[0])
 
     elif freq == 'daily':
-        scaled_data = np.empty(shape=(18264,), dtype=np.float32)
+        d0, d1 = date_list[0], date_list[-1]
+        delta = ((d1 - d0) + 1) / np.timedelta64(1, 'D')
+
+        scaled_data = np.empty(shape=(int(delta),), dtype=np.float32)
         scaled_data[:] = np.nan
 
-        start_date = np.datetime64('1967-04-01')
-        date_list = []
-        for i in range(0, 18264, 1):
-            date_list.append((start_date + np.timedelta64(i, 'D')).astype(dt.datetime))
+        start_date = np.datetime64(str(date_list[0]), 'M')
 
-        date_list = np.asarray(date_list)
+        date_days_list = []
+        for i in range(0, int(delta), 1):
+            date_days_list.append((start_date + np.timedelta64(i, 'D')).astype(dt.datetime))
 
-        indices_dl = np.arange(date_list.shape[0])[np.in1d(date_list, date_column)]
-        indices_dc = np.arange(date_column.shape[0])[np.in1d(date_column, date_list)]
+        date_days_list = np.asarray(date_days_list)
+
+        indices_dl = np.arange(date_days_list.shape[0])[np.in1d(date_days_list, date_column)]
+        indices_dc = np.arange(date_column.shape[0])[np.in1d(date_column, date_days_list)]
 
         for i in range(0, len(indices_dl), 1):
             scaled_data[indices_dl[i]] = data_column[indices_dc[i]]
 
         start, stop = 0, 0
-        for i in range(0, 601, 1):
+        for i in range(0, date_list.shape[0], 1):
             month = np.arange(
-                np.datetime64('1967-04') + np.timedelta64(i, 'M'), (np.datetime64('1967-05') + np.timedelta64(i, 'M')),
+                start_date + np.timedelta64(i, 'M'), (start_date + np.timedelta64(i + 1, 'M')),
                 dtype='datetime64[D]')
 
             start = stop
@@ -72,7 +72,7 @@ def time_scale(data_column, date_column, freq=None):
                 warnings.simplefilter('ignore')
                 scaled_data[i] = np.nanmean(scaled_data[start:stop])
 
-        return trim_column(scaled_data)
+        return trim_column(scaled_data, date_list.shape[0])
 
     elif freq is None:
         # Added some wriggle room for business days
@@ -92,7 +92,7 @@ def time_scale(data_column, date_column, freq=None):
         raise ValueError('Frequency value not recognized')
 
 
-def trim_column(data_column, max_length=601):
+def trim_column(data_column, max_length):
     """
     Abstraction of numpy slicing operation for single column truncation.
     :param data_column: 1D np.array
@@ -110,10 +110,13 @@ def truncate_loss(dataset, isTest=False):
     :param dataset: 2D np.array
     :param isTest: bool to prevent overwriting normal outfile
     """
-    date_list = []
     percent_list = []
+
+    hdf5 = h5py.File('FREDcast.hdf5')
+    date_list = np.asarray(hdf5['admin/dates_index']).astype(np.datetime64)
+    hdf5.close()
+
     for i in range(0, dataset.shape[0], 1):
-        date_list.append((np.datetime64('1967-04') + np.timedelta64(i, 'M')).astype(dt.datetime))
         percent_list.append(np.count_nonzero(np.isnan(dataset[i, :])) / dataset.shape[1])
 
     filename = 'truncate_loss.csv'
@@ -133,12 +136,14 @@ def forward_fill_loss(dataset_raw, dataset_clean, isTest=False):
     :param dataset_raw: 2D np.array without ffill
     :param isTest: bool to prevent overwriting normal outfile
     """
-    date_list = []
     percent_list = []
     # month
+    hdf5 = h5py.File('FREDcast.hdf5')
+    date_list = np.asarray(hdf5['admin/dates_index']).astype(np.datetime64)
+    hdf5.close()
+
     for i in range(0, dataset_raw.shape[0], 1):
         percent_nan = 0
-        date_list.append((np.datetime64('1967-04') + np.timedelta64(i, 'M')).astype(dt.datetime))
         nan_indicies = np.argwhere(np.isnan(dataset_raw[i, :]))
         for index in nan_indicies:
             if dataset_clean[i, index] is not np.nan:
@@ -163,7 +168,7 @@ def forward_fill_loss(dataset_raw, dataset_clean, isTest=False):
         for index in nan_indicies:
             if dataset_clean[index, i] is not np.nan:
                 percent_nan += 1
-        percent_list.append(percent_nan / 601)
+        percent_list.append(percent_nan / dataset_raw.shape[0])
 
     filename1 = 'ffill_loss_feature.csv'
     if isTest:
@@ -315,8 +320,8 @@ if __name__ == '__main__':
             # monthly
             test_data_column = np.array([5, 10, 15, 5], dtype=np.float32)
             test_date_column = np.array(
-                [dt.date(1967, 4, 1), dt.date(1967, 5, 1), dt.date(1967, 6, 2), dt.date(2017, 4, 1)])
-            solution = np.empty(shape=(601,), dtype=np.float32)
+                [dt.date(1990, 1, 1), dt.date(1990, 2, 1), dt.date(1990, 3, 2), dt.date(2017, 4, 1)])
+            solution = np.empty(shape=(328,), dtype=np.float32)
             solution[:] = np.nan
             solution[0] = 5
             solution[1] = 10
@@ -324,71 +329,71 @@ if __name__ == '__main__':
             solution[-1] = 5
             test_result = time_scale(test_data_column, test_date_column)
 
-            self.assertEqual(test_result.shape, (601,))
+            self.assertEqual(test_result.shape, (328,))
             self.assertEqual(test_result.dtype, np.float32)
             np.testing.assert_array_almost_equal(test_result, solution)
 
             # daily
             test_data_column = np.array([10, 20, 50, 5], dtype=np.float32)
             test_date_column = np.array(
-                [dt.date(1967, 4, 1), dt.date(1967, 4, 2), dt.date(1967, 6, 1), dt.date(2017, 4, 1)])
-            solution = np.empty(shape=(601,), dtype=np.float32)
+                [dt.date(1990, 1, 1), dt.date(1990, 1, 2), dt.date(1990, 3, 1), dt.date(2017, 4, 1)])
+            solution = np.empty(shape=(328,), dtype=np.float32)
             solution[:] = np.nan
             solution[0] = 15
             solution[2] = 50
             solution[-1] = 5
             test_result = time_scale(test_data_column, test_date_column)
 
-            self.assertEqual(test_result.shape, (601,))
+            self.assertEqual(test_result.shape, (328,))
             self.assertEqual(test_result.dtype, np.float32)
             np.testing.assert_array_almost_equal(test_result, solution)
 
             # weekly
             test_data_column = np.array([10, 20, 30], dtype=np.float32)
-            test_date_column = np.array([dt.date(1967, 4, 1), dt.date(1967, 4, 8), dt.date(1967, 4, 15)])
-            solution = np.empty(shape=(601,), dtype=np.float32)
+            test_date_column = np.array([dt.date(1990, 1, 1), dt.date(1990, 1, 8), dt.date(1990, 1, 15)])
+            solution = np.empty(shape=(328,), dtype=np.float32)
             solution[:] = np.nan
             solution[0] = float((10 + 20 + 30) / 3)
             test_result = time_scale(test_data_column, test_date_column)
 
-            self.assertEqual(test_result.shape, (601,))
+            self.assertEqual(test_result.shape, (328,))
             self.assertEqual(test_result.dtype, np.float32)
             np.testing.assert_array_almost_equal(test_result, solution)
 
             # quarterly
             test_data_column = np.array([30, 20, 10], dtype=np.float32)
-            test_date_column = np.array([dt.date(1967, 4, 1), dt.date(1967, 7, 1), dt.date(1967, 10, 1)])
-            solution = np.empty(shape=(601,), dtype=np.float32)
+            test_date_column = np.array([dt.date(1990, 1, 1), dt.date(1990, 4, 1), dt.date(1990, 7, 1)])
+            solution = np.empty(shape=(328,), dtype=np.float32)
             solution[:] = np.nan
             solution[0] = 30
             solution[3] = 20
             solution[6] = 10
             test_result = time_scale(test_data_column, test_date_column)
 
-            self.assertEqual(test_result.shape, (601,))
+            self.assertEqual(test_result.shape, (328,))
             self.assertEqual(test_result.dtype, np.float32)
             np.testing.assert_array_almost_equal(test_result, solution)
 
             # annually
             test_data_column = np.array([30, 20, 10], dtype=np.float32)
-            test_date_column = np.array([dt.date(1968, 1, 1), dt.date(1969, 1, 1), dt.date(1970, 1, 1)])
-            solution = np.empty(shape=(601,), dtype=np.float32)
+            test_date_column = np.array([dt.date(1990, 1, 1), dt.date(1991, 1, 1), dt.date(1992, 1, 1)])
+            solution = np.empty(shape=(328,), dtype=np.float32)
             solution[:] = np.nan
-            solution[9] = 30
-            solution[21] = 20
-            solution[33] = 10
+            solution[0] = 30
+            solution[12] = 20
+            solution[24] = 10
             test_result = time_scale(test_data_column, test_date_column)
 
-            self.assertEqual(test_result.shape, (601,))
+            self.assertEqual(test_result.shape, (328,))
             self.assertEqual(test_result.dtype, np.float32)
             np.testing.assert_array_almost_equal(test_result, solution)
 
         def test_trim_column(self):
             test_data_column = np.empty(shape=(700,), dtype=np.float32)
-            solution = np.empty(shape=(601,), dtype=np.float32)
-            test_result = trim_column(test_data_column)
+            solution = np.empty(shape=(328,), dtype=np.float32)
+            test_result = trim_column(test_data_column, 328)
 
-            self.assertEqual(test_result.shape, (601,))
+            self.assertEqual(test_result.shape, (328,))
             self.assertEqual(test_result.dtype, np.float32)
 
         def test_truncate_loss(self):
@@ -407,9 +412,9 @@ if __name__ == '__main__':
                     date, percent = row[0].strip(), row[1].strip()
                     percent_on_date[date] = percent
 
-            self.assertEqual(percent_on_date['1967-04-01'], '100.0%')
-            self.assertEqual(percent_on_date['1967-05-01'], '100.0%')
-            self.assertEqual(percent_on_date['1967-06-01'], '20.0%')
+            self.assertEqual(percent_on_date['1990-01-01'], '100.0%')
+            self.assertEqual(percent_on_date['1990-02-01'], '100.0%')
+            self.assertEqual(percent_on_date['1990-03-01'], '20.0%')
 
         def test_forward_fill_loss(self):
             test_data_column_raw = np.empty(shape=(601, 5), dtype=np.float32)
@@ -433,9 +438,9 @@ if __name__ == '__main__':
                     date, percent = row[0].strip(), row[1].strip()
                     percent_on_date[date] = percent
 
-            self.assertEqual(percent_on_date['1967-04-01'], '20.0%')
-            self.assertEqual(percent_on_date['1967-05-01'], '40.0%')
-            self.assertEqual(percent_on_date['1967-06-01'], '40.0%')
+            self.assertEqual(percent_on_date['1990-01-01'], '20.0%')
+            self.assertEqual(percent_on_date['1990-02-01'], '40.0%')
+            self.assertEqual(percent_on_date['1990-03-01'], '40.0%')
 
             with open('ffill_loss_feature_UT.csv', 'r') as f:
                 reader = csv.reader(f)
