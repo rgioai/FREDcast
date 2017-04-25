@@ -260,7 +260,7 @@ def remove_nan_features(hdf5_file, admin_file):
         nan_columns = []
         for i in range(0, old_dset_clean.shape[1], 1):
             col = old_dset_clean[:, i]
-            if np.all(np.isnan(col)):
+            if np.any(np.isnan(col)):
                 nan_columns.append(i)
 
         mod_dset_raw = np.delete(old_dset_raw, nan_columns, axis=1)

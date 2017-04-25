@@ -126,7 +126,7 @@ def exp_residual(data_column, second_norm=None):
         return first_norm.astype(np.float32)
 
 
-def gdp_residual(data_column, second_norm=None):
+def gdp_residual(data_column, gdp_data, second_norm=None):
     # (x[i]): ((x[i] - x[i-1])/x[i-1]); if i == 0: x[i] = 0
     # x[i] - ((gdp[i] - gdp[i-1])/gdp[i-1]); if i == 0: gdp[i] = 0
 
@@ -135,10 +135,7 @@ def gdp_residual(data_column, second_norm=None):
 
     n = percent_change(copy)
 
-    # hdf5 file with gdp data
-    hdf5 = h5py.File('FREDcast.hdf5')
-    gdp = np.asarray(hdf5['admin/gdp'])
-    hdf5.close()
+    gdp = gdp_data
 
     try:
         start_point = np.argwhere(np.isnan(copy))[-1][0] + 1
@@ -170,13 +167,24 @@ def normalize_dataset(dataset, norm_fn, second_norm=None):
     copy = np.empty_like(dataset)
     copy[:] = dataset
 
+    # hdf5 file with gdp data
+    hdf5 = h5py.File('FREDcast.hdf5')
+    gdp = np.asarray(hdf5['admin/gdp'])
+    hdf5.close()
+
     if norm_fn is not None:
         for i in range(0, copy.shape[1]):
             if not np.count_nonzero(np.isnan(copy[:, i])) == copy[:, i].size:
-                if second_norm is None:
-                    copy[:, i] = norm_fn(copy[:, i])
+                if norm_fn == gdp_residual:
+                    if second_norm is None:
+                        copy[:, i] = gdp_residual(copy[:, i], gdp)
+                    else:
+                        copy[:, i] = gdp_residual(copy[:, i], gdp, second_norm)
                 else:
-                    copy[:, i] = norm_fn(copy[:, i], second_norm)
+                    if second_norm is None:
+                        copy[:, i] = norm_fn(copy[:, i])
+                    else:
+                        copy[:, i] = norm_fn(copy[:, i], second_norm)
         return copy
     else:
         raise ValueError('Missing dataset value!')
@@ -284,37 +292,41 @@ if __name__ == '__main__':
             np.testing.assert_array_almost_equal_nulp(test_result, solution, nulp=16)
 
         def test_gdp_residual(self):
+            hdf5 = h5py.File('FREDcast.hdf5')
+            gdp = np.asarray(hdf5['admin/gdp'])
+            hdf5.close()
+
             test_data_column_a = np.array([1000, 2000, 4000, 3500, 4500], dtype=np.float32)
-            solution = np.array([0, 1, 1, -0.143212, 0.285714], dtype=np.float32)
-            test_result = gdp_residual(test_data_column_a, second_norm=None)
+            solution = np.array([0, 1, 1, -0.139243, 0.285714], dtype=np.float32)
+            test_result = gdp_residual(test_data_column_a, gdp, second_norm=None)
 
             self.assertEqual(test_result.shape, (5,))
             self.assertEqual(test_result.dtype, np.float32)
-            np.testing.assert_array_almost_equal_nulp(test_result, solution, nulp=19)
+            np.testing.assert_array_almost_equal_nulp(test_result, solution, nulp=26)
 
             test_data_column_b = np.array([1000, 2000, 4000, 3500, 4500], dtype=np.float32)
-            solution = np.array([0.125271, 1, 1, 0, 0.375194], dtype=np.float32)
-            test_result = gdp_residual(test_data_column_b, second_norm=zero_one)
+            solution = np.array([0.122224, 1, 1, 0, 0.373017], dtype=np.float32)
+            test_result = gdp_residual(test_data_column_b, gdp, second_norm=zero_one)
 
             self.assertEqual(test_result.shape, (5,))
             self.assertEqual(test_result.dtype, np.float32)
             np.testing.assert_array_almost_equal_nulp(test_result, solution, nulp=26)
 
             test_data_column_c = np.array([1000, 2000, 4000, 3500, 4500], dtype=np.float32)
-            solution = np.array([0, 0, 0, -1.143212, -2.995048], dtype=np.float32)
-            test_result = gdp_residual(test_data_column_c, second_norm=percent_change)
-
-            self.assertEqual(test_result.shape, (5,))
-            self.assertEqual(test_result.dtype, np.float32)
-            np.testing.assert_array_almost_equal_nulp(test_result, solution, nulp=2)
-
-            test_data_column_d = np.array([1000, 2000, 4000, 3500, 4500], dtype=np.float32)
-            solution = np.array([-0.880534, 1.174385, 1.174385, -1.174822, -0.293414], dtype=np.float32)
-            test_result = gdp_residual(test_data_column_d, second_norm=normal_dist)
+            solution = np.array([0, 0, 0, -1.139243, -3.051917], dtype=np.float32)
+            test_result = gdp_residual(test_data_column_c, gdp, second_norm=percent_change)
 
             self.assertEqual(test_result.shape, (5,))
             self.assertEqual(test_result.dtype, np.float32)
             np.testing.assert_array_almost_equal_nulp(test_result, solution, nulp=3)
+
+            test_data_column_d = np.array([1000, 2000, 4000, 3500, 4500], dtype=np.float32)
+            solution = np.array([-0.883856, 1.175002, 1.175002, -1.170537, -0.295611], dtype=np.float32)
+            test_result = gdp_residual(test_data_column_d, gdp, second_norm=normal_dist)
+
+            self.assertEqual(test_result.shape, (5,))
+            self.assertEqual(test_result.dtype, np.float32)
+            np.testing.assert_array_almost_equal_nulp(test_result, solution, nulp=5)
 
         def test_normalize_dataset(self):
             test_data_column_1 = np.array([10, 20, 30], dtype=np.float32)
