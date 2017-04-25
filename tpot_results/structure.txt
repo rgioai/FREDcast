@@ -1,0 +1,12 @@
+/FREDcast/tpot_results
+    /gdp
+        /norm
+            /residual
+                /test1
+                /test2
+                /test3
+
+    /cpi
+    /payroll
+    /unemployment
+    /test
