@@ -14,9 +14,9 @@ def aggregate_rnn_data(sample):
     repeat_arr = np.asarray(hdf5_fred['data/norm_data/zero_one'])
     hdf5.create_dataset('admin/dates_index', data=np.asarray(hdf5_fred['admin/dates_index']))
 
-    dset_agg = np.empty(shape=(601, repeat_arr.shape[1] * 12),
+    dset_agg = np.empty(shape=(repeat_arr.shape[0], repeat_arr.shape[1] * 12),
                         dtype=np.float32)
-    assert (dset_agg.shape == (601, repeat_arr.shape[1] * 12))
+    # assert (dset_agg.shape == (601, repeat_arr.shape[1] * 12))
 
     filepaths = ['zero_one',
                  'zero_one_linear_residual',
@@ -34,7 +34,7 @@ def aggregate_rnn_data(sample):
     loc = 0
     for path in filepaths:
         norm_dset = np.asarray(hdf5_fred['data/norm_data/' + path])
-        assert (norm_dset.shape[0] == 601)
+        # assert (norm_dset.shape[0] == 601)
         assert (norm_dset.dtype == np.float32)
         dset_agg[:, loc:norm_dset.shape[1]+loc] = norm_dset[:, :]
         loc += norm_dset.shape[1]
