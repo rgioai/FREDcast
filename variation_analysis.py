@@ -37,14 +37,7 @@ def generate_all_results(trained_classifier, norm_fn, residual_fn):
 def generate_significance(all_results, confidence_interval=0.95):
     all_significance = np.empty((len(all_results, 3)), dtype=np.float32)
 
-    if confidence_interval == 0.90:
-        z = 1.645
-    if confidence_interval == 0.95:
-        z = 1.96
-    elif confidence_interval == 0.99:
-        z = 2.576
-    else:
-        z = st.norm.ppf(1 - (1 - confidence_interval) / 2)
+    z = st.norm.ppf(1 - (1 - confidence_interval) / 2)
 
     for i in range(len(all_results)):
         all_significance[i][0] = all_results[i][0] - (z * all_results[i][1])
