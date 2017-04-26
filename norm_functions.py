@@ -63,6 +63,9 @@ def normal_dist(data_column):
 
     def norm(n):
         if not np.isnan(n):
+            if std == 0:
+                print(mean, std, n)
+                return 0
             return (n - mean) / std
         return n
 
