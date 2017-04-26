@@ -44,11 +44,14 @@ def get_data(data_tuple, dsets=False,
         aggregate = data_tuple[3]
         sample = data_tuple[4]
 
-
     hdf5 = h5py.File(get_hdf5(aggregate, sample), 'r')
     grp = hdf5[group_name(norm_fn, residual_fn)]
 
     x_train, x_test, y_train, y_test = grp['train_x'], grp['test_x'], grp['train_y'], grp['test_y']
+
+    for arr in x_train, x_test, y_train, y_test:
+        print(data_tuple)
+        check_complete(arr)
 
     y_train = y_train[:, y_index(indicator)]
     y_test = y_test[:, y_index(indicator)]
@@ -57,3 +60,8 @@ def get_data(data_tuple, dsets=False,
         return x_train, x_test, y_train, y_test
     else:  # Return the actual data
         return x_train[:], x_test[:], y_train[:], y_test[:]
+
+
+def check_complete(array, name=''):
+    if np.isnan(np.min(array)):
+        raise ValueError('%s contains nan' % name)

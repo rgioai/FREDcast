@@ -28,11 +28,11 @@ def tpot_variations(y=True, norm=True, residual=True, no_tests=3):
     return itertools.product(*combins)
 
 
-def tpot_loop(sample=False):
+def tpot_loop(sample=False, no_tests=3):
     if sample:
-        trials = tpot_variations(False, False, False)
+        trials = tpot_variations(False, False, False, no_tests=no_tests)
     else:
-        trials = tpot_variations()
+        trials = tpot_variations(no_tests=no_tests)
     for params in trials:
         data_tuple = params[:-1] + (False, sample)
         if sample:
@@ -51,5 +51,8 @@ if __name__ == '__main__':
             tpot_loop()
         elif '-l' in sys.argv:
             tpot_loop(True)
+        elif '-n' in sys.argv:
+            n = int(sys.argv[sys.argv.index('-n') + 1])
+            tpot_loop(no_tests=n)
     else:
-        print('USAGE STATEMENT: -tpot\n     -a for all | -l for limited')
+        print('USAGE STATEMENT: -tpot\n     -a for all | -l for limited | -n # for n trials on all')
