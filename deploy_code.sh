@@ -7,10 +7,10 @@
 find ~/PycharmProjects/FREDcast -name '.DS_Store' -type f -delete
 
 # Copy relevant programs to deep learning servers
-rsync -r ~/PycharmProjects/FREDcast rgio@cobalt.centurion.ai:/centurion/
+rsync -r -u ~/PycharmProjects/FREDcast rgio@cobalt.centurion.ai:/centurion/
 
-rsync -r ~/PycharmProjects/FREDcast rgio@fireball.cs.uni.edu:/centurion/
+rsync -r -u ~/PycharmProjects/FREDcast rgio@fireball.cs.uni.edu:/centurion/
 
-rsync -r ~/PycharmProjects/FREDcast rgio@buff.centurion.ai:/centurion/
+# rsync -r ~/PycharmProjects/FREDcast rgio@buff.centurion.ai:/centurion/
 
 # rsync -r ~/PycharmProjects/FREDcast/ /centurion/
