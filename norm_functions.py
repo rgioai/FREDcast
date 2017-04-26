@@ -2,7 +2,7 @@ import numpy as np
 import h5py
 
 import warnings
-warnings.filterwarnings('ignore')
+
 
 def zero_one(data_column):
     # ((x - x_min)/(x_max - x_min))
@@ -15,7 +15,10 @@ def zero_one(data_column):
 
     def norm(n):
         if not np.isnan(n):
-            return (n - min) / (max - min)
+            if max == min:
+                return 0
+            else:
+                return (n - min) / (max - min)
         return n
 
     vfunc = np.vectorize(norm)
@@ -104,7 +107,7 @@ def exp_residual(data_column, second_norm=None):
         return ((l / f) ** (1 / n)) - 1
 
     try:
-        start_point = np.argwhere(np.isnan(copy))[-1][0] + 1
+        start_point = np.argwhere(np.isnan(np.nonzero(copy)))[-1][0] + 1
     except IndexError:
         start_point = 0
 

@@ -1,16 +1,75 @@
+import h5py
+import numpy as np
 
 
 def check_for_nan(hdf5_filepath):
-    pass
-    # TODO given a path to an hdf5, open it and check recursively for any nan values
+    hdf5 = h5py.File(hdf5_filepath)
+    paths = []
+
+    def find_datasets(name):
+        if '/' in name:
+            if 'data/raw' not in name:
+                paths.append(name)
+    hdf5.visit(find_datasets)
+
+    for path in paths:
+        dset = np.asarray(hdf5[path])
+        if np.any(np.isnan(dset)):
+            print(str(path) + ' in ' + str(hdf5_filepath) + ' contains NaN.')
+    hdf5.close()
 
 
 def check_dsets(hdf5_filepath):
-    pass
-    # TODO Based on hdf5_structure, check shapes and dtypes (preferably dynamically)
+    hdf5 = h5py.File(hdf5_filepath)
+    train_x_paths = []
+    train_y_paths = []
+    test_x_paths = []
+    test_y_paths = []
+
+    def find_datasets(name):
+        if '/train_x' in name:
+            train_x_paths.append(name)
+        elif '/train_x' in name:
+            train_x_paths.append(name)
+        elif '/train_y' in name:
+            train_y_paths.append(name)
+        elif '/test_x' in name:
+            test_x_paths.append(name)
+        elif '/test_y' in name:
+            test_y_paths.append(name)
+
+    hdf5.visit(find_datasets)
+
+    date_dset = np.asarray(hdf5['admin/dates_index'])
+
+    for path in train_x_paths:
+        dset = np.asarray(hdf5[path])
+        if dset.shape[0] != 3:
+            print('Shape for ' + str(path) + ' in ' + str(hdf5_filepath) + ' is invalid.')
+    for path in train_y_paths:
+        dset = np.asarray(hdf5[path])
+        if dset.shape[0] != 3:
+            print('Shape for ' + str(path) + ' in ' + str(hdf5_filepath) + ' is invalid.')
+    for path in test_x_paths:
+        dset = np.asarray(hdf5[path])
+        if dset.shape[0] != date_dset.shape[0] - 3:
+            print('Shape for ' + str(path) + ' in ' + str(hdf5_filepath) + ' is invalid.')
+    for path in test_y_paths:
+        dset = np.asarray(hdf5[path])
+        if dset.shape[0] != date_dset.shape[0] - 3:
+            print('Shape for ' + str(path) + ' in ' + str(hdf5_filepath) + ' is invalid.')
+    hdf5.close()
 
 
 if __name__ == '__main__':
-    pass
-    # TODO run check_for_nan on any hdf5 that should not have nan
-    # TODO run check_dsets on any hdf5 that will touch a classifier: probably split and rnn
+    check_for_nan('FREDcast_sample.hdf5')
+    check_for_nan('FREDcast.hdf5')
+    check_for_nan('split_data_sample.hdf5')
+    check_for_nan('split_data.hdf5')
+    check_for_nan('rnn_data_sample.hdf5')
+    check_for_nan('rnn_data.hdf5')
+
+    check_dsets('split_data_sample.hdf5')
+    check_dsets('split_data.hdf5')
+    check_dsets('rnn_data_sample.hdf5')
+    check_dsets('rnn_data.hdf5')

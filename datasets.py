@@ -268,10 +268,10 @@ if __name__ == '__main__':
     # create_admin_hdf5(sample=False)
     # create_admin_hdf5(sample=True)
 
-    # print('Sample Data')
-    # modify_data(sample=True)
-    # print('Full Data')
-    # modify_data(sample=False)
+    print('Sample Data')
+    modify_data(sample=True)
+    print('Full Data')
+    modify_data(sample=False)
 
     hdf5 = h5py.File('FREDcast.hdf5')
     raw = np.asarray(hdf5['data/raw'])
