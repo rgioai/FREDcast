@@ -13,7 +13,7 @@ def check_for_nan(hdf5_filepath):
     hdf5.visit(find_datasets)
 
     for path in paths:
-        dset = np.asarray(hdf5[path])
+        dset = hdf5[path][:]
         if np.any(np.isnan(dset)):
             print(str(path) + ' in ' + str(hdf5_filepath) + ' contains NaN.')
     hdf5.close()
@@ -40,22 +40,22 @@ def check_dsets(hdf5_filepath):
 
     hdf5.visit(find_datasets)
 
-    date_dset = np.asarray(hdf5['admin/dates_index'])
+    date_dset = hdf5['admin/dates_index'][:]
 
     for path in train_x_paths:
-        dset = np.asarray(hdf5[path])
+        dset = hdf5[path]
         if dset.shape[0] != date_dset.shape[0] - 3:
             print('Shape for ' + str(path) + ' in ' + str(hdf5_filepath) + ' is invalid.')
     for path in train_y_paths:
-        dset = np.asarray(hdf5[path])
+        dset = hdf5[path]
         if dset.shape[0] != date_dset.shape[0] - 3:
             print('Shape for ' + str(path) + ' in ' + str(hdf5_filepath) + ' is invalid.')
     for path in test_x_paths:
-        dset = np.asarray(hdf5[path])
+        dset = hdf5[path]
         if dset.shape[0] != 3:
             print('Shape for ' + str(path) + ' in ' + str(hdf5_filepath) + ' is invalid.')
     for path in test_y_paths:
-        dset = np.asarray(hdf5[path])
+        dset = hdf5[path]
         if dset.shape[0] != 3:
             print('Shape for ' + str(path) + ' in ' + str(hdf5_filepath) + ' is invalid.')
     hdf5.close()
