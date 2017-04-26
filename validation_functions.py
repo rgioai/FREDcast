@@ -44,19 +44,19 @@ def check_dsets(hdf5_filepath):
 
     for path in train_x_paths:
         dset = np.asarray(hdf5[path])
-        if dset.shape[0] != 3:
+        if dset.shape[0] != date_dset.shape[0] - 3:
             print('Shape for ' + str(path) + ' in ' + str(hdf5_filepath) + ' is invalid.')
     for path in train_y_paths:
         dset = np.asarray(hdf5[path])
-        if dset.shape[0] != 3:
+        if dset.shape[0] != date_dset.shape[0] - 3:
             print('Shape for ' + str(path) + ' in ' + str(hdf5_filepath) + ' is invalid.')
     for path in test_x_paths:
         dset = np.asarray(hdf5[path])
-        if dset.shape[0] != date_dset.shape[0] - 3:
+        if dset.shape[0] != 3:
             print('Shape for ' + str(path) + ' in ' + str(hdf5_filepath) + ' is invalid.')
     for path in test_y_paths:
         dset = np.asarray(hdf5[path])
-        if dset.shape[0] != date_dset.shape[0] - 3:
+        if dset.shape[0] != 3:
             print('Shape for ' + str(path) + ' in ' + str(hdf5_filepath) + ' is invalid.')
     hdf5.close()
 
