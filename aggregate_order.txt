@@ -1,0 +1,20 @@
+rnn_data_sample.hdf5
+	x:
+	zero_one
+	zero_one_linear_residual
+	zero_one_exp_residual
+	zero_one_gdp_residual
+	percent_change
+	percent_change_linear_residual
+	percent_change_exp_residual
+	percent_change_gdp_residual
+	normal_dist
+	normal_dist_linear_residual
+	normal_dist_exp_residual
+	normal_dist_gdp_residual
+	
+	y:
+	gdp
+	cpi
+	payroll
+	unemployment
