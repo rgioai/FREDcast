@@ -1,6 +1,8 @@
 import numpy as np
 import h5py
 
+import math
+
 import warnings
 
 
@@ -101,18 +103,25 @@ def exp_residual(data_column, second_norm=None):
     copy = np.empty_like(data_column)
     copy[:] = data_column
 
-    year_dif = data_column.size / 12
+    year_dif = int(copy.shape[0] / 12)
 
     def cagr_func(f, l, n):
-        return ((l / f) ** (1 / n)) - 1
+        if f == 0:
+            return 0
+        return math.pow((l / f), (1 / n)) - 1
 
-    try:
-        start_point = np.argwhere(np.isnan(np.nonzero(copy)))[-1][0] + 1
-    except IndexError:
-        start_point = 0
-
-    first = copy[start_point]
+    first = copy[0]
     last = copy[-1]
+
+    if first == 0:
+        first = np.where(copy != 0)[0][0]
+
+    if first < 0 < last:
+        first = np.where(copy > 0)[0][0]
+
+    if first > 0 > last:
+        last = np.where(copy > 0)[0][-1]
+
     cagr = cagr_func(first, last, year_dif)
 
     def norm(n):
