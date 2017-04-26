@@ -28,7 +28,7 @@ def tpot_variations(y=True, norm=True, residual=True, no_tests=3):
     return itertools.product(*combins)
 
 
-def tpot_loop(sample=False, no_tests=3):
+def tpot_loop(sample=False, no_tests=3, generations=10, pop_size=100):
     if sample:
         trials = tpot_variations(False, False, False, no_tests=no_tests)
     else:
@@ -43,16 +43,27 @@ def tpot_loop(sample=False, no_tests=3):
             filepath = 'tpot_results/{}/{}/{}/{}'.format(*params)
         os.makedirs(dirpath, exist_ok=True)
 
-        tpot_regression(data_tuple, filepath)
+        tpot_regression(data_tuple, filepath, generations=10, pop_size=100)
 
 if __name__ == '__main__':
     if '-tpot' in sys.argv:
+        if '-g' in sys.argv:
+            g = int(sys.argv[sys.argv.index('-n') + 1])
+        else:
+            g = 10
+        if '-p' in sys.argv:
+            p = int(sys.argv[sys.argv.index('-n') + 1])
+        else:
+            p = 100
         if '-a' in sys.argv:
-            tpot_loop()
+            tpot_loop(generations=g, pop_size=p)
         elif '-l' in sys.argv:
-            tpot_loop(True)
+            tpot_loop(True, generations=g, pop_size=p)
         elif '-n' in sys.argv:
             n = int(sys.argv[sys.argv.index('-n') + 1])
-            tpot_loop(no_tests=n)
+            tpot_loop(no_tests=n, generations=g, pop_size=p)
+
     else:
-        print('USAGE STATEMENT: -tpot\n     -a for all | -l for limited | -n # for n trials on all')
+        print('USAGE STATEMENT: -tpot\n'
+              '     -a for all | -l for limited | -n # for n trials on all\n'
+              '     -g # -p # for generations and popsize, respectively.')

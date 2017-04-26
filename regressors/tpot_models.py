@@ -12,7 +12,7 @@ import pickle
 
 def tpot_regression(data_tuple, out_filename, n_splits=5,
                     generations=10, pop_size=100, verbosity=2):
-    #sys.stdout = open(out_filename + '.out', 'w')
+    sys.stdout = open(out_filename + '.out', 'w')
 
     x_train, x_test, y_train, y_test = get_data(data_tuple)
     tpot = TPOTRegressor(generations=generations, population_size=pop_size,
