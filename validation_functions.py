@@ -8,11 +8,12 @@ def check_for_nan(hdf5_filepath):
 
     def find_datasets(name):
         if '/' in name:
-            if 'data/raw' not in name:
+            if 'data/raw' not in name and 'admin/dates_index' not in name and 'data/norm_data' not in name:
                 paths.append(name)
     hdf5.visit(find_datasets)
 
     for path in paths:
+        print(path)
         dset = np.asarray(hdf5[path])
         if np.any(np.isnan(dset)):
             print(str(path) + ' in ' + str(hdf5_filepath) + ' contains NaN.')
