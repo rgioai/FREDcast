@@ -276,6 +276,9 @@ def sample_existing_data():
         copied_data = hdf5_full[path][:]
         if len(copied_data.shape) == 2:
             hdf5_sample.create_dataset(path, data=copied_data[:, 0:1000])
+        elif len(copied_data.shape) == 1:
+            hdf5_sample.create_dataset(path, data=copied_data)
+            # we don't slice here because it's not 2D and we'd be messing with the wrong axis
     hdf5_sample.close()
     hdf5_full.close()
 
