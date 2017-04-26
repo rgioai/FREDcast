@@ -47,7 +47,7 @@ def gather_y(sample):
     hdf5.close()
 
 
-def create_admin_hdf5(sample=False):
+def create_admin_hdf5():
     with open('quandl_codes.csv', 'r') as f:
         reader = csv.DictReader(f)
         data = {}
@@ -58,25 +58,13 @@ def create_admin_hdf5(sample=False):
                 except KeyError:
                     data[header] = [value]
 
-    if sample is True:
-        hdf5 = h5py.File('admin_sample.hdf5')
-        codes = np.asarray(data['Codes']).astype('S')
-        descriptions = np.asarray(data['Descriptions']).astype('S')
-        codes = codes[0:1000]
-        descriptions = descriptions[0:1000]
+    hdf5 = h5py.File('admin.hdf5')
+    codes = np.asarray(data['Codes']).astype('S')
+    descriptions = np.asarray(data['Descriptions']).astype('S')
 
-        hdf5.create_dataset('admin/codes', data=codes)
-        hdf5.create_dataset('admin/descriptions', data=descriptions)
-        hdf5.close()
-
-    else:
-        hdf5 = h5py.File('admin.hdf5')
-        codes = np.asarray(data['Codes']).astype('S')
-        descriptions = np.asarray(data['Descriptions']).astype('S')
-
-        hdf5.create_dataset('admin/codes', data=codes)
-        hdf5.create_dataset('admin/descriptions', data=descriptions)
-        hdf5.close()
+    hdf5.create_dataset('admin/codes', data=codes)
+    hdf5.create_dataset('admin/descriptions', data=descriptions)
+    hdf5.close()
 
 
 def gather_data(start, end, append=False, sample=False):
@@ -98,13 +86,13 @@ def gather_data(start, end, append=False, sample=False):
 
     if append is True:
         hdf5_old = h5py.File('FREDcast.hdf5')
-        old_dset_raw = np.asarray(hdf5_old['data/raw'])
-        old_dset_clean = np.asarray(hdf5_old['data/clean'])
-        old_gdp = np.asarray(hdf5_old['admin/gdp'])
-        old_cpi = np.asarray(hdf5_old['admin/cpi'])
-        old_payroll = np.asarray(hdf5_old['admin/payroll'])
-        old_unemployment = np.asarray(hdf5_old['admin/unemployment'])
-        old_dates = np.asarray(hdf5_old['admin/dates_index'])
+        old_dset_raw = hdf5_old['data/raw'][:]
+        old_dset_clean = hdf5_old['data/clean'][:]
+        old_gdp = hdf5_old['admin/gdp'][:]
+        old_cpi = hdf5_old['admin/cpi'][:]
+        old_payroll = hdf5_old['admin/payroll'][:]
+        old_unemployment = hdf5_old['admin/unemployment'][:]
+        old_dates = hdf5_old['admin/dates_index'][:]
         hdf5_old.close()
         os.rename(os.path.realpath('FREDcast.hdf5'), os.path.realpath('FREDcast.hdf5') + '.bak')
 
@@ -262,23 +250,54 @@ def modify_data(sample=False):
     normalize_data(sample=sample)
 
 
+def sample_existing_data():
+    # admin
+    hdf5_admin_full = h5py.File('admin.hdf5', 'r')
+
+    hdf5_admin_sample = h5py.File('admin_sample.hdf5')
+    for path in ['admin/codes', 'admin/descriptions']:
+        hdf5_admin_sample.create_dataset(path, data=hdf5_admin_full[path][:][0:1000])
+    hdf5_admin_sample.close()
+    hdf5_admin_full.close()
+
+    # FREDcast
+    hdf5_full = h5py.File('FREDcast.hdf5', 'r')
+    paths = []
+
+    def find_datasets(name):
+        if '/' in name:
+            if name != 'data/norm_data':
+                paths.append(name)
+
+    hdf5_full.visit(find_datasets)
+
+    hdf5_sample = h5py.File('FREDcast_sample.hdf5')
+    for path in paths:
+        copied_data = hdf5_full[path][:]
+        if len(copied_data.shape) == 2:
+            hdf5_sample.create_dataset(path, data=copied_data[:, 0:1000])
+    hdf5_sample.close()
+    hdf5_full.close()
+
+
 if __name__ == '__main__':
     # FUTURE: I will move all this to the interface.
 
+    sample_existing_data()
     # create_admin_hdf5(sample=False)
     # create_admin_hdf5(sample=True)
 
-    print('Sample Data')
-    modify_data(sample=True)
-    print('Full Data')
-    modify_data(sample=False)
+    # print('Sample Data')
+    # modify_data(sample=True)
+    # print('Full Data')
+    # modify_data(sample=False)
 
-    hdf5 = h5py.File('FREDcast.hdf5')
-    raw = np.asarray(hdf5['data/raw'])
-    clean = np.asarray(hdf5['data/clean'])
-    truncate_loss(clean)
-    forward_fill_loss(raw, clean)
-    hdf5.close()
+    # hdf5 = h5py.File('FREDcast.hdf5')
+    # raw = hdf5['data/raw'][:]
+    # clean = hdf5['data/clean'][:]
+    # truncate_loss(clean)
+    # forward_fill_loss(raw, clean)
+    # hdf5.close()
 
     # gather_data(0, 1000, False, sample=True)
 

@@ -11,8 +11,8 @@ def aggregate_rnn_data(sample):
         hdf5 = h5py.File('rnn_data.hdf5')
         hdf5_fred = h5py.File('FREDcast.hdf5')
 
-    repeat_arr = np.asarray(hdf5_fred['data/norm_data/zero_one'])
-    hdf5.create_dataset('admin/dates_index', data=np.asarray(hdf5_fred['admin/dates_index']))
+    repeat_arr = hdf5_fred['data/norm_data/zero_one'][:]
+    hdf5.create_dataset('admin/dates_index', data=hdf5_fred['admin/dates_index'][:])
 
     dset_agg = np.empty(shape=(repeat_arr.shape[0], repeat_arr.shape[1] * 12),
                         dtype=np.float32)
@@ -33,7 +33,7 @@ def aggregate_rnn_data(sample):
 
     loc = 0
     for path in filepaths:
-        norm_dset = np.asarray(hdf5_fred['data/norm_data/' + path])
+        norm_dset = hdf5_fred['data/norm_data/' + path][:]
         # assert (norm_dset.shape[0] == 601)
         assert (norm_dset.dtype == np.float32)
         dset_agg[:, loc:norm_dset.shape[1]+loc] = norm_dset[:, :]
@@ -42,10 +42,10 @@ def aggregate_rnn_data(sample):
     hdf5.create_dataset('data/train_x', data=dset_agg[0:(norm_dset.shape[0] - 3), :])
     hdf5.create_dataset('data/test_x', data=dset_agg[-3:, :])
 
-    y_data = [np.asarray(hdf5_fred['admin/gdp']),
-              np.asarray(hdf5_fred['admin/cpi']),
-              np.asarray(hdf5_fred['admin/payroll']),
-              np.asarray(hdf5_fred['admin/unemployment'])]
+    y_data = [hdf5_fred['admin/gdp'][:],
+              hdf5_fred['admin/cpi'][:],
+              hdf5_fred['admin/payroll'][:],
+              hdf5_fred['admin/unemployment'][:]]
 
     y_data = np.hstack(y_data)
     hdf5.create_dataset('data/train_y', data=y_data[0:(norm_dset.shape[0] - 3), :])
@@ -54,5 +54,5 @@ def aggregate_rnn_data(sample):
     hdf5_fred.close()
 
 if __name__ == '__main__':
-    aggregate_rnn_data(True)
-    aggregate_rnn_data(False)
+    aggregate_rnn_data(sample=True)
+    #aggregate_rnn_data(sample=False)

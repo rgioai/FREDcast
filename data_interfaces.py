@@ -12,7 +12,7 @@ def split_data(sample):
         hdf5 = h5py.File('split_data.hdf5')
         hdf5_fred = h5py.File('FREDcast.hdf5')
 
-    hdf5.create_dataset('admin/dates_index', data=np.asarray(hdf5_fred['admin/dates_index']))
+    hdf5.create_dataset('admin/dates_index', data=hdf5_fred['admin/dates_index'][:])
 
     filepaths = ['zero_one',
                  'zero_one_linear_residual',
@@ -27,14 +27,14 @@ def split_data(sample):
                  'normal_dist_exp_residual',
                  'normal_dist_gdp_residual']
 
-    y_data = [np.asarray(hdf5_fred['admin/gdp']),
-                np.asarray(hdf5_fred['admin/cpi']),
-                np.asarray(hdf5_fred['admin/payroll']),
-                    np.asarray(hdf5_fred['admin/unemployment'])]
+    y_data = [hdf5_fred['admin/gdp'][:],
+              hdf5_fred['admin/cpi'][:],
+              hdf5_fred['admin/payroll'][:],
+              hdf5_fred['admin/unemployment'][:]]
     y_data = np.hstack(y_data)
 
     for path in filepaths:
-        norm_dset = np.asarray(hdf5_fred['data/norm_data/' + path])
+        norm_dset = hdf5_fred['data/norm_data/' + path][:]
         # assert (norm_dset.shape[0] == 601)
         assert (norm_dset.dtype == np.float32)
         hdf5.create_dataset(path + '/train_x', data=norm_dset[0:(norm_dset.shape[0] - 3), :])
@@ -109,5 +109,5 @@ class TFLearn_Interface(Interface):
 
 
 if __name__ == '__main__':
-    split_data(True)
-    split_data(False)
+    split_data(sample=True)
+    #split_data(sample=False)
