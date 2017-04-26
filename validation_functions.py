@@ -3,12 +3,12 @@ import numpy as np
 
 
 def check_for_nan(hdf5_filepath):
-    hdf5 = h5py.File(hdf5_filepath)
+    hdf5 = h5py.File(hdf5_filepath, 'r')
     paths = []
 
     def find_datasets(name):
         if '/' in name:
-            if 'data/raw' not in name:
+            if 'data/raw' not in name and 'admin/dates_index' not in name and name != 'data/norm_data':
                 paths.append(name)
     hdf5.visit(find_datasets)
 
