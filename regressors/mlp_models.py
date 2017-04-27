@@ -19,7 +19,7 @@ def mlp_regression(data_tuple, out_filename, scale_factor=5, n_splits=5, verbosi
         hidden_layer_shape.append(this_layer_width)
 
 
-    clf = MLPRegressor(tuple(hidden_layer_shape), verbose=verbosity)
+    clf = MLPRegressor(tuple(hidden_layer_shape), verbose=verbosity, max_iter=4000)
     clf.fit(x_train, y_train)
 
     train_r2 = clf.score(x_train, y_train)

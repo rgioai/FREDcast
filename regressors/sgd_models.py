@@ -13,7 +13,7 @@ def sgd_regression(data_tuple, out_filename, n_splits=5, verbosity=2):
 
     x_train, x_test, y_train, y_test = get_data(data_tuple)
 
-    clf = SGDRegressor(verbose=verbosity)
+    clf = SGDRegressor(verbose=verbosity, n_iter=100)
     clf.fit(x_train, y_train)
 
     train_r2 = clf.score(x_train, y_train)
