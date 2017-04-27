@@ -1,4 +1,5 @@
 from tpot_models import tpot_regression
+from sgd_models import sgd_regression
 
 import itertools
 import os
@@ -30,40 +31,70 @@ def tpot_variations(y=True, norm=True, residual=True, no_tests=3):
 
 def tpot_loop(sample=False, no_tests=3, generations=10, pop_size=100):
     if sample:
-        trials = tpot_variations(False, False, False, no_tests=no_tests)
+        trials = tpot_variations(no_tests=no_tests)
     else:
         trials = tpot_variations(no_tests=no_tests)
     for params in trials:
         data_tuple = params[:-1] + (False, sample)
-        if sample:
-            dirpath = 'tpot_results/test'
-            filepath = 'tpot_results/test/{}'.format(params[-1])
-        else:
-            dirpath = 'tpot_results/{}/{}/{}'.format(*params)
-            filepath = 'tpot_results/{}/{}/{}/{}'.format(*params)
+        #if sample:
+        #    dirpath = 'tpot_results/test'
+        #    filepath = 'tpot_results/test/{}'.format(params[-1])
+        #else:
+        dirpath = 'tpot_results/{}/{}/{}'.format(*params)
+        filepath = 'tpot_results/{}/{}/{}/{}'.format(*params)
         os.makedirs(dirpath, exist_ok=True)
 
-        tpot_regression(data_tuple, filepath, generations=10, pop_size=100)
+        tpot_regression(data_tuple, filepath, generations=generations, pop_size=pop_size)
+
+def sgd_loop(sample=False, no_tests=3, generations=10, pop_size=100):
+    if sample:
+        trials = tpot_variations(no_tests=no_tests)
+    else:
+        trials = tpot_variations(no_tests=no_tests)
+    for params in trials:
+        data_tuple = params[:-1] + (False, sample)
+        #if sample:
+        #    dirpath = 'tpot_results/test'
+        #    filepath = 'tpot_results/test/{}'.format(params[-1])
+        #else:
+        dirpath = 'sgd_results/{}/{}/{}'.format(*params)
+        filepath = 'sgd_results/{}/{}/{}/{}'.format(*params)
+        os.makedirs(dirpath, exist_ok=True)
+
+        sgd_regression(data_tuple, filepath)
 
 if __name__ == '__main__':
     if '-tpot' in sys.argv:
         if '-g' in sys.argv:
-            g = int(sys.argv[sys.argv.index('-n') + 1])
+            g = int(sys.argv[sys.argv.index('-g') + 1])
         else:
             g = 10
         if '-p' in sys.argv:
-            p = int(sys.argv[sys.argv.index('-n') + 1])
+            p = int(sys.argv[sys.argv.index('-p') + 1])
         else:
             p = 100
-        if '-a' in sys.argv:
-            tpot_loop(generations=g, pop_size=p)
-        elif '-l' in sys.argv:
-            tpot_loop(True, generations=g, pop_size=p)
-        elif '-n' in sys.argv:
+        if '-n' in sys.argv:
             n = int(sys.argv[sys.argv.index('-n') + 1])
+        else:
+            n = 3
+        if '-a' in sys.argv:
             tpot_loop(no_tests=n, generations=g, pop_size=p)
+        elif '-l' in sys.argv:
+            tpot_loop(True, no_tests=n, generations=g, pop_size=p)
+    elif '-sgd' in sys.argv:
+        if '-n' in sys.argv:
+            n = int(sys.argv[sys.argv.index('-n') + 1])
+        else:
+            n = 3
+        if '-a' in sys.argv:
+            sgd_loop(no_tests=n)
+        elif '-l' in sys.argv:
+            sgd_loop(True, no_tests=n)
 
     else:
-        print('USAGE STATEMENT: -tpot\n'
-              '     -a for all | -l for limited | -n # for n trials on all\n'
-              '     -g # -p # for generations and popsize, respectively.')
+        print('USAGE STATEMENT: \n'
+              '-tpot\n'
+              '     -a for all | -l for limited | -n # for n trials\n'
+              '     -g # -p # for generations and popsize, respectively\n'
+              '-sgd\n'
+              '     -a for all | -l for limited | -n # for n trials')

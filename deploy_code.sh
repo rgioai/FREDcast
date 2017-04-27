@@ -11,6 +11,8 @@ rsync -r -u ~/PycharmProjects/FREDcast rgio@cobalt.centurion.ai:/centurion/
 
 rsync -r -u ~/PycharmProjects/FREDcast rgio@fireball.cs.uni.edu:/centurion/
 
+#rsync -r -u ~/PycharmProjects/FREDcast rgio@10.0.1.14:/centurion/
+
 # rsync -r ~/PycharmProjects/FREDcast rgio@buff.centurion.ai:/centurion/
 
 # rsync -r ~/PycharmProjects/FREDcast/ /centurion/
