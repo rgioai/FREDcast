@@ -1,5 +1,6 @@
 from tpot_models import tpot_regression
 from sgd_models import sgd_regression
+from mlp_models import mlp_regression
 
 import itertools
 import os
@@ -46,7 +47,8 @@ def tpot_loop(sample=False, no_tests=3, generations=10, pop_size=100):
 
         tpot_regression(data_tuple, filepath, generations=generations, pop_size=pop_size)
 
-def sgd_loop(sample=False, no_tests=3, generations=10, pop_size=100):
+
+def sgd_loop(sample=False, no_tests=3):
     if sample:
         trials = tpot_variations(no_tests=no_tests)
     else:
@@ -59,6 +61,24 @@ def sgd_loop(sample=False, no_tests=3, generations=10, pop_size=100):
         #else:
         dirpath = 'sgd_results/{}/{}/{}'.format(*params)
         filepath = 'sgd_results/{}/{}/{}/{}'.format(*params)
+        os.makedirs(dirpath, exist_ok=True)
+
+        sgd_regression(data_tuple, filepath)
+
+
+def mlp_loop(sample=False, no_tests=3):
+    if sample:
+        trials = tpot_variations(no_tests=no_tests)
+    else:
+        trials = tpot_variations(no_tests=no_tests)
+    for params in trials:
+        data_tuple = params[:-1] + (False, sample)
+        #if sample:
+        #    dirpath = 'tpot_results/test'
+        #    filepath = 'tpot_results/test/{}'.format(params[-1])
+        #else:
+        dirpath = 'mlp_results/{}/{}/{}'.format(*params)
+        filepath = 'mlp_results/{}/{}/{}/{}'.format(*params)
         os.makedirs(dirpath, exist_ok=True)
 
         sgd_regression(data_tuple, filepath)
@@ -90,6 +110,15 @@ if __name__ == '__main__':
             sgd_loop(no_tests=n)
         elif '-l' in sys.argv:
             sgd_loop(True, no_tests=n)
+    elif '-mlp' in sys.argv:
+        if '-n' in sys.argv:
+            n = int(sys.argv[sys.argv.index('-n') + 1])
+        else:
+            n = 3
+        if '-a' in sys.argv:
+            mlp_loop(no_tests=n)
+        elif '-l' in sys.argv:
+            mlp_loop(True, no_tests=n)
 
     else:
         print('USAGE STATEMENT: \n'
@@ -97,4 +126,6 @@ if __name__ == '__main__':
               '     -a for all | -l for limited | -n # for n trials\n'
               '     -g # -p # for generations and popsize, respectively\n'
               '-sgd\n'
-              '     -a for all | -l for limited | -n # for n trials')
+              '     -a for all | -l for limited | -n # for n trials\n'
+              '-mlp\n'
+              '     -a for all | -l for limited | -n # for n trials\n')
